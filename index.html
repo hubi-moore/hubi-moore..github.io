@@ -50,7 +50,7 @@ Hello World<br/>
 </div>
 
 <script type="text/javascript">
-    // magento JS code
+   // magento JS code
 //     require(['jquery'], function($) {
 //         $(document).ready(function() {
 //             // Check if the popup should be shown or hidden based on the checkbox state
@@ -64,9 +64,11 @@ Hello World<br/>
 //                 if ($(this).is(':checked')) {
 //                     // Hide the popup permanently
 //                     localStorage.setItem('popupVisible', false);
+//                     $('#popup').hide();
 //                 } else {
 //                     // Show the popup on subsequent visits
 //                     localStorage.removeItem('popupVisible');
+//                     $('#popup').show();
 //                 }
 //             });
 //         });
@@ -74,22 +76,24 @@ Hello World<br/>
 </script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Check if the popup should be shown or hidden based on the checkbox state
-        var showPopup = localStorage.getItem('popupVisible');
-        if (!showPopup) {
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if the popup should be shown or hidden based on the checkbox state
+    var showPopup = localStorage.getItem('popupVisible');
+    if (!showPopup) {
+        document.getElementById('popup').style.display = 'block';
+    }
+
+    // Handle checkbox change event
+    document.getElementById('popup-checkbox').addEventListener('change', function() {
+        if (this.checked) {
+            // Hide the popup permanently
+            localStorage.setItem('popupVisible', false);
+            document.getElementById('popup').style.display = 'none';
+        } else {
+            // Show the popup on subsequent visits
+            localStorage.removeItem('popupVisible');
             document.getElementById('popup').style.display = 'block';
         }
-
-        // Handle checkbox change event
-        document.getElementById('popup-checkbox').addEventListener('change', function() {
-            if (this.checked) {
-                // Hide the popup permanently
-                localStorage.setItem('popupVisible', false);
-            } else {
-                // Show the popup on subsequent visits
-                localStorage.removeItem('popupVisible');
-            }
-        });
     });
+});
 </script>
