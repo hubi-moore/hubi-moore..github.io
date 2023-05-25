@@ -74,10 +74,10 @@ php bin/magento cache:flush
 ```
 
 After completing these steps, your popup should be displayed on every page of your Magento 2.4.x store. The checkbox will allow users to indicate if they want the popup to disappear forever, and their preference will be stored using local storage.
-
-
-CSS:
-Certainly! Here's an example of CSS code that you can use for styling your popup:
+<br/>
+<br/>
+CSS:<br/>
+Here's an example of CSS code that you can use for styling your popup:
 
 ```css
 #popup {
@@ -117,10 +117,10 @@ To use this CSS, you can either include it in your theme's CSS file or add it to
 
 Make sure to adjust the CSS selectors based on your HTML structure and classes used in your popup template.
 
-
-
-NOW UPDATED HTML:
-Certainly! Here's an updated version of the HTML popup code with additional elements and styling:
+<br/>
+<br/>
+NOW UPDATED HTML:<br/>
+Here's an updated version of the HTML popup code with additional elements and styling:
 
 ```html
 <div id="popup">
