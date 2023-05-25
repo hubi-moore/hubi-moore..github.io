@@ -1,5 +1,7 @@
 Hello World<br/>
 // hh
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <style>
 #popup {
     position: fixed;
@@ -73,9 +75,28 @@ Hello World<br/>
 //             });
 //         });
 //     });
+jQuery(function ($) {
+            // Check if the popup should be shown or hidden based on the checkbox state
+            var showPopup = localStorage.getItem('popupVisible');
+            if (!showPopup) {
+                $('#popup').show();
+            }
+
+            // Handle checkbox change event
+            $('#popup-checkbox').change(function() {
+                if ($(this).is(':checked')) {
+                    // Hide the popup permanently
+                    localStorage.setItem('popupVisible', false);
+                    $('#popup').hide();
+                } else {
+                    // Show the popup on subsequent visits
+                    localStorage.removeItem('popupVisible');
+                    $('#popup').show();
+                }
+            });
+});    
 </script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
+<!-- <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Check if the popup should be shown or hidden based on the checkbox state
     var showPopup = localStorage.getItem('popupVisible');
@@ -96,4 +117,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
-</script>
+</script> -->
