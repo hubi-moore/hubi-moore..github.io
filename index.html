@@ -1,2 +1,73 @@
 Hello World<br/>
 // hh
+<style>
+#popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    padding: 20px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+    z-index: 9999;
+    display: none;
+    max-width: 400px;
+}
+
+#popup-checkbox {
+    margin-right: 5px;
+}
+
+#popup label {
+    font-size: 14px;
+}
+
+#popup-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    cursor: pointer;
+    color: #999;
+    font-size: 20px;
+}
+
+</style>
+
+<div id="popup">
+    <div id="popup-content">
+        <h2>Welcome to Our Website!</h2>
+        <p>Thank you for visiting our website. Sign up for our newsletter to receive the latest updates and exclusive offers.</p>
+        <form id="popup-form" action="#">
+            <input type="email" id="popup-email" placeholder="Enter your email" required />
+            <button type="submit">Sign Up</button>
+        </form>
+        <div id="popup-checkbox">
+            <input type="checkbox" id="popup-checkbox-input" />
+            <label for="popup-checkbox-input">Don't show this popup again</label>
+        </div>
+        <span id="popup-close">&times;</span>
+    </div>
+</div>
+
+<script type="text/javascript">
+    require(['jquery'], function($) {
+        $(document).ready(function() {
+            // Check if the popup should be shown or hidden based on the checkbox state
+            var showPopup = localStorage.getItem('popupVisible');
+            if (!showPopup) {
+                $('#popup').show();
+            }
+
+            // Handle checkbox change event
+            $('#popup-checkbox').change(function() {
+                if ($(this).is(':checked')) {
+                    // Hide the popup permanently
+                    localStorage.setItem('popupVisible', false);
+                } else {
+                    // Show the popup on subsequent visits
+                    localStorage.removeItem('popupVisible');
+                }
+            });
+        });
+    });
+</script>
