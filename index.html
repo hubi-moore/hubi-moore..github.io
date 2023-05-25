@@ -1,4 +1,6 @@
 Hello World<br/>
+<button id="show-popup-again">Show popup again</button>
+<button id="popup-storage-clear">Remove local storage variable</button>
 <div style="height: 1200px;">Large container</div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -52,36 +54,24 @@ Hello World<br/>
 </div>
 
 <script type="text/javascript">
-   // magento JS code
-//     require(['jquery'], function($) {
-//         $(document).ready(function() {
-//             // Check if the popup should be shown or hidden based on the checkbox state
-//             var showPopup = localStorage.getItem('popupVisible');
-//             if (!showPopup) {
-//                 $('#popup').show();
-//             }
-
-//             // Handle checkbox change event
-//             $('#popup-checkbox-input').change(function() {
-//                 if ($(this).is(':checked')) {
-//                     // Hide the popup permanently
-//                     localStorage.setItem('popupVisible', false);
-//                     $('#popup').hide();
-//                 } else {
-//                     // Show the popup on subsequent visits
-//                     localStorage.removeItem('popupVisible');
-//                     $('#popup').show();
-//                 }
-//             });
-//         });
-//     });
 jQuery(function ($) {
             // Check if the popup should be shown or hidden based on the checkbox state
             var showPopup = localStorage.getItem('popupVisible');
             if (!showPopup) {
                 $('#popup').show();
             }
-
+            // Handle popup close event 
+            $('#popup-close').on('click',function(){
+                $('#popup').hide();
+            });
+            // Handle popup show event 
+            $('#show-popup-again').on('click',function(){
+                $('#popup').show();
+            });
+            // Handle local storage variable removal 
+            $('#popup-storage-clear').on('click',function(){
+                localStorage.removeItem('popupVisible');
+            });    
             // Handle checkbox change event
             $('#popup-checkbox-input').change(function() {
                 if ($(this).is(':checked')) {
@@ -96,25 +86,3 @@ jQuery(function ($) {
             });
 });    
 </script>
-<!-- <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if the popup should be shown or hidden based on the checkbox state
-    var showPopup = localStorage.getItem('popupVisible');
-    if (!showPopup) {
-        document.getElementById('popup').style.display = 'block';
-    }
-
-    // Handle checkbox change event
-    document.getElementById('popup-checkbox-input').addEventListener('change', function() {
-        if (this.checked) {
-            // Hide the popup permanently
-            localStorage.setItem('popupVisible', false);
-            document.getElementById('popup').style.display = 'none';
-        } else {
-            // Show the popup on subsequent visits
-            localStorage.removeItem('popupVisible');
-            document.getElementById('popup').style.display = 'block';
-        }
-    });
-});
-</script> -->
