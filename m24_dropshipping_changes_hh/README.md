@@ -3,13 +3,13 @@ Do bazy danych powinny trafić dwa nowe pola - na pewno do sales_flat_order (?) 
  - `termin_realizacji`: varchar(255) DEFAULT 'Natychmiastowa',
  - `prods_dostawa_zew`: varchar(255) DEFAULT 'NIE',
 
-
-WORKTREE:<br/>
-  └── webroot/<br/>
-      ├── app/<br/>
-      │   ├── code/<br/>
-      │   │   └── local/<br/>
-      │   │       ├── Network/<br/>
+```xml
+WORKTREE:
+  └── webroot/
+      ├── app/
+      │   ├── code/
+      │   │   └── local/
+      │   │       ├── Network/
       │   │       │   ├── ProductSubstitutes/
       │   │       │   │   └── controllers/
       │   │       │   │       ├── DostawazewController.php
@@ -69,3 +69,4 @@ WORKTREE:<br/>
                   └── dark_us/
                       └── js/
                           └── checkout-date-picker.js
+```
