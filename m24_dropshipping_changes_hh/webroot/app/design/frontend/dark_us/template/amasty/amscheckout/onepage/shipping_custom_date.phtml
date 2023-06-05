@@ -1,0 +1,255 @@
+<div class="datadostawy">
+    <?php
+    $imidiateExec = true;
+    $execLater = true;
+    $waitForAllItems = false;
+    $checked = array('asap' => true,'later' => false,'wait'=> false);
+    $quote = $this->getQuote();
+    $itemsWithDataZewArray = array();
+    $allItems = array();
+    foreach ($quote->getAllVisibleItems() as $item) {
+        $prod = Mage::getModel('catalog/product')->load($item->getProduct()->getId());
+        $allItems[] = $prod->getId();
+        if (strlen(trim($prod->getData('dostawa_zew'))) > 0) {
+            $itemsWithDataZewArray[] = $prod->getId();
+        }
+    }
+    $allItemsCount = count($allItems);
+    $itemsWithDataZew = count($itemsWithDataZewArray);
+    $value = 'Natychmiastowa';
+    $show_tooltips = false;
+    if ($itemsWithDataZew > 0):
+        $waitForAllItems = true;
+        $execLater = false;
+        $show_tooltips = true;
+        $checked['asap'] = true;
+        $checked['later'] = false;
+        $checked['wait'] = false;
+        echo '<input type="text" class="input-text data-dostawy-zew-prods" value="TAK" name="prods_dostawa_zew" style="display: none" type="text" id="prods_dostawa_zew">';
+    endif;
+    if ($allItemsCount === $itemsWithDataZew && $itemsWithDataZew > 0) {
+        $waitForAllItems = true;
+        $imidiateExec = false;
+        $execLater = false;
+        $checked['asap'] = false;
+        $checked['later'] = false;
+        $checked['wait'] = true;
+    }
+    if($itemsWithDataZew > 0) {
+        $chosenTermin = Mage::getSingleton('customer/session')->getChosenTermin();
+        if(!$chosenTermin) {
+            Mage::getSingleton('customer/session')->setChosenTermin('asap');
+        } else {
+            foreach ($checked as $index => $check) {
+                if($index === $chosenTermin) {
+                    $checked[$index] = true;
+                } else {
+                    $checked[$index] = false;
+                }
+            }
+        }
+        $checked['1_chosen'] = $chosenTermin;
+    }
+    ?>
+    <div class="shipping_date_picker">
+        <?php if ($imidiateExec === true):
+            $asap_label = '<label for="shipping_date_asap">Realizacja natychmiastowa</label>';
+            $checked_inline = 'checked="checked';
+            if($itemsWithDataZew > 0 && $checked['asap'] !== true) {
+                $checked_inline = '';
+            }
+            if($show_tooltips === true) {
+                $tooltip_content = '<i class="fa fa-question" aria-hidden="true"></i><span class="tooltip-content">';
+                $tooltip_content .= 'Część zamówienia zostanie wysłana osobną dostawą powyżej 24h.';
+                $tooltip_content .= '</span>';
+                $asap_label .='<span class="ship_tooltip">'.$tooltip_content.'</span>';
+            }
+            ?>
+            <div class="shipping_date_item asap">
+                <input name="shipping_date_type" value="shipping_date_asap" id="shipping_date_asap" type="radio"
+                       title="Realizacja natychmiastowa" <?= $checked_inline ?>
+                       class="radio"/>
+                <?= $asap_label ?>
+            </div>
+        <?php endif ?>
+        <?php if ($execLater === true): ?>
+            <div class="shipping_date_item later">
+                <input name="shipping_date_type" value="shipping_date_later" id="shipping_date_later" type="radio"
+                       title="Późniejszy termin realizacji"
+                       class="radio"/>
+                <label for="shipping_date_later">Późniejszy termin realizacji</label>
+            </div>
+        <?php endif ?>
+        <?php if ($waitForAllItems === true):
+            $wait_label = '<label for="shipping_date_waiting">Dostawa do 5 dni roboczych</label>';
+            $checked_inline = '';
+            if($show_tooltips === true) {
+                $tooltip_content = '<i class="fa fa-question" aria-hidden="true"></i><span class="tooltip-content">';
+                $tooltip_content .= 'Twoje zamówienie w całości zostanie wysłane jedną dostawą w ciągu 5 dni roboczych.';
+                $tooltip_content .= '</span>';
+                $wait_label .='<span class="ship_tooltip">'.$tooltip_content.'</span>';
+            }
+            if($checked['wait'] === true) {
+                $checked_inline = 'checked="checked"';
+                $value = 'do 5 dni roboczych';
+            }
+            if ($execLater === false && $imidiateExec === false) {
+                $checked_inline = 'checked="checked"';
+                $value = 'do 5 dni roboczych';
+            } ?>
+            <div class="shipping_date_item waiting">
+                <input name="shipping_date_type" value="shipping_date_waiting" id="shipping_date_waiting" type="radio"
+                       title="Realizacja w ciągu 2-3 dni" <?= $checked_inline ?>
+                       class="radio"/>
+                <?= $wait_label ?>
+            </div>
+        <?php endif ?>
+    </div>
+    <input type="text" class="input-text data-dostawy-input-wait" value="<?= $value ?>" name="termin_realizacji" style="display: none" type="text"
+           id="termin_realizacji">
+    <div class="pick_shipping_date_later">
+        <p style="margin-top:20px;margin-bottom: 5px">Wybierz preferowaną datę dostawy:</p>
+        <input type="text" class="input-text data-dostawy-input" name="datadostawy" style="" type="text" id="datadostawy">
+        <div id="datepicker"></div>
+        <button title="Usuń datę dostawy" type="button" id="cleardata" class="close data-dostawy-input" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+
+        <p style="margin-bottom: 5px;">Wybrana data dostawy może się zmienić +- 1 dzień.</p>
+        <!--        <p>Wprowadzenie daty dostawy skutkuje <b>opóźnieniem czasu realizacji zamówienia</b>. Jeżeli chcesz, aby-->
+        <!--            zamówienie zostało zrealizowane jak najszybciej pole powinno pozostać <b>puste</b>.</p>-->
+
+    </div>
+    <!--     <div id="date_select_trig"> <img style="" title="Select Date" alt="" src="<?php echo $this->getSkinUrl("images/calendar.gif"); ?> "/><span>Wybierz z kalendarza</span></div> -->
+</div>
+
+<script src="https://code.jquery.com/ui/1.13.1/jquery-ui.js"></script>
+<?php
+/* MAIN SH*T IS HERE: /public_html/skin/frontend/athlete/dark_us/js/checkout-date-picker.js */
+?>
+<script src="<?php echo $this->getSkinUrl('js/checkout-date-picker.js', array('_secure' => true)); ?>"></script>
+<link rel="stylesheet" href="//code.jquery.com/ui/1.13.1/themes/base/jquery-ui.css">
+<link rel="stylesheet" href="/resources/demos/style.css">
+
+
+<link rel="stylesheet" type="text/css" href="<?php echo Mage::getBaseUrl('js') ?>calendar/calendar-win2k-1.css"/>
+<?php echo $this->getLayout()->createBlock('core/html_calendar')->setTemplate('page/js/calendar.phtml')->toHtml(); ?>
+<script>
+    let chosen_termin = '<?= $chosenTermin ?>';
+    if(chosen_termin === 'wait') {
+        jQuery('.dostawa_zew_show').hide();
+        dostawa_zew_notice.text(original_txt.replace('Część zamówienia zostanie wysłana osobną dostawą powyżej 24h. ','Twoje zamówienie w całości zostanie wysłane jedną dostawą w ciągu 5 dni roboczych. '));
+    }
+    function setChosenTerminRealizacji(data)
+    {
+        jQuery.ajax({
+            type: 'POST',
+            url: '<?php echo Mage::getUrl("sap/index/terminrealizacji"); ?>',
+            data: {new_value: data},
+            success: function(response) {
+                // Display success message or do something else
+                console.log(response);
+            }
+        });
+    }
+</script>
+<style>
+    .data-dostawy-input {
+        visibility: hidden;
+        opacity: 0;
+        height: 0;
+        display: none;
+    }
+
+    .shipping_date_picker {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: flex-start;
+        align-items: center;
+    }
+
+    .shipping_date_item {
+        display: block;
+        width: 100%;
+        margin-bottom: 5px;
+    }
+
+    .datadostawy button {
+        float: right;
+    }
+
+    div.datadostawy {
+        padding-left: 10px;
+    }
+
+    div.datadostawy input[type="text"] {
+        width: 100px !important;
+    }
+
+    div.datadostawy input[type="radio"] {
+        width: auto !important;
+    }
+
+    .datadostawy * {
+        margin-right: 0px;
+    }
+
+    #date_select_trig {
+        cursor: pointer;
+        text-decoration: underline;
+        font-size: 13px;
+        line-height: 20px;
+    }
+    span.ship_tooltip .tooltip-content {
+        position: absolute;
+        width: max-content;
+        background: black;
+        max-width: 250px;
+        text-align: left;
+        box-sizing: border-box;
+        padding: 7px;
+        border-radius: 3px;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    .shipping_date_item .ship_tooltip {
+        display: inline-block;
+        margin: 0 5px;
+        width: 15px;
+        height: 15px;
+        text-align: center;
+        vertical-align: middle;
+        color: white;
+        background: black;
+        border-radius: 100%;
+        cursor: help;
+        position: relative;
+    }
+    .shipping_date_item.asap .ship_tooltip .tooltip-content {
+        top: -55px;
+    }
+    .shipping_date_item.waiting .ship_tooltip .tooltip-content {
+        top: -70px;
+    }
+    .ship_tooltip:hover .tooltip-content {
+        opacity: 1;
+        visibility: visible;
+    }
+
+
+
+    .ship_tooltip:hover .tooltip-content:after {
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        border: 5px solid transparent;
+        border-top-color: black;
+        content: '';
+        transform: translateX(-50%);
+    }
+</style>

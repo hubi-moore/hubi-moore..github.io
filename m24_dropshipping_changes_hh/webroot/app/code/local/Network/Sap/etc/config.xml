@@ -1,0 +1,166 @@
+<?xml version="1.0"?>
+<config>
+  <modules>
+    <Network_Sap>
+      <version>0.1.0</version>
+    </Network_Sap>
+  </modules>
+	<frontend>
+		<routers>
+			<sap>
+				<use>standard</use>
+				<args>
+					<module>Network_Sap</module>
+					<frontName>sap</frontName>
+				</args>
+			</sap>
+		</routers>
+
+	</frontend>
+  <global>
+    <helpers>
+      <sap>
+        <class>Network_Sap_Helper</class>
+      </sap>
+    </helpers>
+	<models>
+	  <sap>
+		<class>Network_Sap_Model</class>
+		<resourceModel>sap_mysql4</resourceModel>
+	  </sap>
+	</models>
+	<resources>
+	  <customerattribute1485154497_setup>
+		<setup>
+		  <module>Network_Sap</module>
+		  <class>Mage_Customer_Model_Entity_Setup</class>
+		</setup>
+		<connection>
+		  <use>core_setup</use>
+		</connection>
+	  </customerattribute1485154497_setup>
+	  <customerattribute1485154497_write>
+		<connection>
+		  <use>core_write</use>
+		</connection>
+	  </customerattribute1485154497_write>
+	  <customerattribute1485154497_read>
+		<connection>
+		  <use>core_read</use>
+		</connection>
+	  </customerattribute1485154497_read>
+	</resources>
+
+	  <events>
+		  <!-- <sales_order_place_after>
+			  <observers>
+				  <generator_csv>
+					  <type>model</type>
+					  <class>sap/observer</class>
+					  <method>generateCsv</method>
+					  <args></args>
+				  </generator_csv>
+			  </observers>
+		  </sales_order_place_after> -->
+
+		              <catalog_product_get_final_price>
+                <observers>
+                    <catalog_product_get_final_price_handler>
+                        <type>singleton</type>
+                        <class>sap/price</class>
+                        <method>changePrice</method>
+                    </catalog_product_get_final_price_handler>
+                </observers>
+            </catalog_product_get_final_price>
+      
+            <catalog_product_collection_load_after>
+                <observers>
+                    <catalog_products_get_final_price_handler>
+                        <type>singleton</type>
+                        <class>sap/price</class>
+                        <method>changePriceMass</method>
+                    </catalog_products_get_final_price_handler>
+                </observers>
+            </catalog_product_collection_load_after>
+
+		  <customer_register_success>
+			  <observers>
+				  <customer_register_success_handler>
+					  <type>model</type>
+					  <class>sap/observer</class>
+					  <method>sendNewCustomerMail</method>
+					  <args></args>
+				  </customer_register_success_handler>
+			  </observers>
+		  </customer_register_success>
+
+		  <checkout_type_onepage_save_order_after>
+			  <observers>
+				  <saveCustomerComment>
+					  <class>sap/observer</class>
+					  <method>saveOrderComment</method>
+				  </saveCustomerComment>
+			  </observers>
+		  </checkout_type_onepage_save_order_after>
+
+
+	  </events>
+
+	  <rewrite>
+		  <designer_url>
+			  <from><![CDATA[#^/historia-zamowien-simple24/#]]></from>
+			  <to><![CDATA[/sap/index/login/]]></to>
+			  <complete>1</complete>
+		  </designer_url>
+	  </rewrite>
+
+	  <fieldsets>
+		  <sales_convert_quote><ordercomment><to_order>*</to_order></ordercomment></sales_convert_quote>
+		  <sales_convert_order><ordercomment><to_quote>*</to_quote></ordercomment></sales_convert_order>
+		  <sales_convert_order><customer_order_id><to_quote>*</to_quote></customer_order_id></sales_convert_order>		
+		  <sales_convert_quote><datadostawy><to_order>*</to_order></datadostawy></sales_convert_quote>
+          <sales_convert_order><datadostawy><to_quote>*</to_quote></datadostawy></sales_convert_order>
+		  <sales_convert_quote><termin_realizacji><to_order>*</to_order></termin_realizacji></sales_convert_quote>
+		  <sales_convert_order><termin_realizacji><to_quote>*</to_quote></termin_realizacji></sales_convert_order>
+		  <sales_convert_quote><prods_dostawa_zew><to_order>*</to_order></prods_dostawa_zew></sales_convert_quote>
+		  <sales_convert_order><prods_dostawa_zew><to_quote>*</to_quote></prods_dostawa_zew></sales_convert_order>
+	  </fieldsets>
+  </global>    
+    <crontab>
+        <jobs>            
+			<!-- <sap_pobierzaktualnepliki>
+                <schedule><cron_expr>* * * * *</cron_expr></schedule>
+                <run><model>sap/cron::pobierzAktualnePliki</model></run>
+            </sap_pobierzaktualnepliki> -->
+			
+			<!--<sap_exportorderscsv>-->
+				<!--<schedule><cron_expr>* * * * *</cron_expr></schedule> &lt;!&ndash; co 5 min&ndash;&gt;-->
+				<!--<run><model>sap/cron::exportOrdersCsv</model></run>-->
+			<!--</sap_exportorderscsv>-->
+
+			<!--<sap_updatestock>-->
+                <!--<schedule><cron_expr>*/30 * * * *</cron_expr></schedule>-->
+                <!--<run><model>sap/cron::updateStock</model></run>-->
+            <!--</sap_updatestock>-->
+
+			<sap_updateclientdata>
+                <schedule><cron_expr>*/30 * * * *</cron_expr></schedule>
+                <run><model>sap/cron::updateClientData</model></run>
+            </sap_updateclientdata>
+			
+			<payu_check>
+                <schedule><cron_expr>*/30 * * * *</cron_expr></schedule>
+                <run><model>sap/cron::checkOrdersPayUUnpay</model></run>
+      </payu_check>
+			
+
+			<!--<sap_orderupdate>-->
+                <!--<schedule><cron_expr>*/30 * * * *</cron_expr></schedule>-->
+                <!--<run><model>sap/cron::updateOrder</model></run>-->
+            <!--</sap_orderupdate>-->
+
+
+
+        </jobs>
+    </crontab>
+</config> 

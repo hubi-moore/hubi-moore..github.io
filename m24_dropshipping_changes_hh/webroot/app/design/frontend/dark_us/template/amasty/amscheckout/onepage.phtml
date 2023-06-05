@@ -1,0 +1,2630 @@
+<?php
+/**
+ * @author Amasty Team
+ * @copyright Copyright (c) 2016 Amasty (https://www.amasty.com)
+ * @package Amasty_Scheckout
+ */
+?>
+<?php
+$hlr = $this->helper("amscheckout");
+
+$_areas = $hlr->getAreas();
+
+//Visual Options
+$themeColor = $hlr->getThemeColor();
+$textColor = $hlr->getTextColor();
+$backgroundColor = '#FFF'; //bg
+$buttonColor = $hlr->getButtonColor();
+
+$fontFamily = $hlr->getFontFamily();
+
+$themeColorFrom = $hlr->colourBrightness($themeColor, 0.9);
+$themeColorTo = $hlr->colourBrightness($themeColor, -0.7);
+
+$buttonBorderColor = $buttonColor;
+
+$buttonColorFrom = $hlr->colourBrightness($buttonColor, -0.8);
+$buttonColorTo = $hlr->colourBrightness($buttonColor, 1);
+
+$buttonColorActiveFrom = $hlr->colourBrightness($buttonColor, 1);
+$buttonColorActiveTo = $hlr->colourBrightness($buttonColor, -0.8);
+
+$buttonColorHoverFrom = $hlr->colourBrightness($buttonColorFrom, 0.9);
+$buttonColorHoverTo = $hlr->colourBrightness($buttonColorTo, 0.9);
+
+//    $skipLogin = !$this->getChild("login") || !$this->getChild("login")->isShow();
+$skipBilling = !$this->getChild("billing") || !$this->getChild("billing")->isShow();
+$skipShipping = !$this->getChild("shipping") || !$this->getChild("shipping")->isShow();
+$skipShippingMethod = !$this->getChild("shipping_method") || !$this->getChild("shipping_method")->isShow();
+$skipPayment = !$this->getChild("payment") || !$this->getChild("payment")->isShow();
+$skipReview = !$this->getChild("review") || !$this->getChild("review")->isShow();
+
+$skipCoupon = $hlr->skipCouponSection();
+$skipGiftCard = $hlr->skipGiftCardSection();
+$skipAmGiftCard = $hlr->skipAmGiftCardSection();
+
+$onclick = 'amShowDialog()';
+if (Mage::helper('core')->isModuleEnabled('Amasty_Ajaxlogin')) {
+    $onclick = 'AmAjaxLoginObj.sendLoginAjax()';
+}
+?>
+<script type="text/javascript" src="<?php echo $this->getJsUrl('varien/accordion.js') ?>"></script>
+<script type="text/javascript" src="<?php echo $this->getSkinUrl('js/opcheckout.js') ?>"></script>
+<?php
+if ($hlr->isCustomerMustBeLogged() && !$this->isCustomerLoggedIn()) {
+    ?>
+    <ol class="opc" id="checkoutSteps">
+        <li id="opc-login" class="section allow active">
+            <div class="step-title"></div>
+            <div id="checkout-step-login" class="step a-item">
+                <?php echo $this->getChildHtml("login_default"); ?>
+            </div>
+        </li>
+    </ol>
+
+    <script>
+        var checkout = {};
+        checkout.setMethod = function () {
+            document.location.href = '<?php echo Mage::getUrl("customer/account/create")?>';
+        }
+    </script>
+    <?php
+
+} else {
+    ?>
+    <style>
+
+        <?php if (!empty($fontFamily)) { ?>
+        .amscheckout-main,
+        .amschekcout_title,
+        .amschekcout_content {
+            font-family: <?php print $fontFamily;?>;
+        }
+
+        <?php } ?>
+        .amscheckout-login-table label,
+        .amscheckout .form-list label,
+        .amscheckout .amscheckout-label {
+            color: <?php print $textColor?>;
+        }
+
+        .amscheckout-main a,
+        .amscheckout-main a:active,
+        .amscheckout-main a:hover,
+        .amscheckout-login a,
+        .amscheckout-login a:active,
+        .amscheckout-login a:hover {
+            color: <?php print $themeColor?>;
+        }
+
+        .amscheckout textarea:focus,
+        .amscheckout select:focus,
+        .amscheckout-login input[type="text"]:focus,
+        .amscheckout input[type="text"]:focus,
+        .amscheckout select:focus:hover,
+        .amscheckout-login input[type="text"]:focus:hover,
+        .amscheckout textarea:focus:hover,
+        .amscheckout input[type="text"]:focus:hover {
+            box-shadow: 0px 0px 5px<?php print $themeColor?>;
+            border: 1px solid<?php print $themeColor?>;
+        }
+
+        .amscheckout .form-list label.required em,
+        .amscheckout .amscheckout-label em {
+            color: <?php print $themeColor?>;
+        }
+
+        .amscheckout-login {
+            border: 2px solid<?php print $themeColor?>;
+            background-color: <?php print $backgroundColor?>;
+        }
+
+        .amscheckout-img {
+            background-color: <?php print $themeColor;?>;
+
+        }
+
+        .amschekcout_title {
+            background-color: <?php print $themeColor;?>;
+
+        }
+
+        .amscheckout-img-shadow {
+            background-color: <?php print $backgroundColor?>;
+
+        }
+
+        .amscheckout-dologin:active span,
+        .amscheckout-submit:active span,
+        .amscheckout-apply:active span {
+            background-color: <?php print $buttonColor?>;
+            border: solid 1px<?php print $buttonBorderColor;?>;
+
+        }
+
+
+        .amscheckout-dologin:hover span,
+        .amscheckout-submit:hover span,
+        .amscheckout-apply:hover span {
+            background-color: <?php print $buttonColor?>;
+            border: solid 1px<?php print $buttonBorderColor;?>;
+
+        }
+
+
+        .amscheckout-dologin span,
+        .amscheckout-submit span,
+        .amscheckout-apply span {
+            background-color: <?php print $buttonColor?>;
+            border: solid 1px<?php print $buttonBorderColor;?>;
+
+        }
+
+        #co-payment-form {
+            width: 100%;
+        }
+
+        .amscheckout .product-name img {
+            float: left;
+        }
+
+        .amscheckout .product-name {
+            line-height: 16px;
+        }
+
+    </style>
+    <script>
+        var billingForm = new VarienForm('amscheckout-onepage');
+
+        function deleteItem(itemId) {
+            $('delete_cart_id').value = itemId;
+            showLoading();
+            ajaxUpdate('<?php print $hlr->getDeleteUrl();?>', function () {
+                hideLoading();
+            });
+            return false;
+        }
+
+        function updateReview() {
+            showLoading();
+            ajaxUpdate('<?php print $hlr->getCartUrl();?>', function () {
+                hideLoading();
+            });
+        }
+
+        function cartEvents() {
+            $$('#update_cart_qty').each(function (input) {
+                input.observe("click", function () {
+                    $('update_cart_action').value = 'update_qty';
+                    showLoading();
+                    ajaxUpdate('<?php print $hlr->getCartUrl();?>', function () {
+                        hideLoading();
+                    });
+                    return false;
+                })
+            });
+
+            $$('#empty_cart_button').each(function (input) {
+                input.observe("click", function () {
+                    $('update_cart_action').value = 'empty_cart';
+                    showLoading();
+                    ajaxUpdate('<?php print $hlr->getCartUrl();?>', function () {
+                        hideLoading();
+                    });
+                    return false;
+                })
+            });
+
+            $$('[name="amcheckout-delete"]').each(function (input) {
+                input.observe("click", function () {
+                    $('delete_cart_id').value = this.getAttribute('data-id');
+                    showLoading();
+                    ajaxUpdate('<?php print $hlr->getDeleteUrl();?>', function () {
+                        hideLoading();
+                    });
+                    return false;
+                })
+            });
+        }
+
+        function updateCheckout(section) {
+            renderCheckout(section, '<?php print $hlr->getUpdateUrl();?>', false);
+        }
+
+        function renderCheckout(section, url, hideLoading) {
+            url = url ? url : '<?php print $hlr->getRenderUrl();?>';
+            $('updated_section').value = section ? section : "";
+
+            var loading = null;
+
+
+            var pendingRequest = ajaxUpdate(url, function () {
+                loading.after();
+            });
+
+            loading = new amLoadingProcess(section, pendingRequest, hideLoading);
+            loading.before();
+        }
+
+        function amShowDialog() {
+            if (!amContentWin) {
+                amContentWin = new Window({
+                    draggable: true,
+                    resizable: true,
+                    closable: true,
+                    className: "amschekcout",
+                    windowClassName: "popup-window",
+                    title: '<?php print $this->__("Log in")?>',
+                    width: 320,
+                    height: 185,
+                    zIndex: 5000,
+                    recenterAuto: true,
+                    hideEffect: Element.hide,
+                    showEffect: Element.show,
+                    id: 'viewDialog'
+                });
+                amContentWin.setContent('amscheckout-login');
+
+            }
+            amContentWin.showCenter(true);
+            loginForm = new VarienForm('login-form', true);
+        }
+
+    </script>
+    <script>
+        var accordion = new Accordion('checkoutSteps', '.step-title', true);
+
+        var checkout = new Checkout(accordion, {
+                progress: '<?php echo $this->getUrl('checkout/onepage/progress') ?>',
+                review: '<?php echo $this->getUrl('checkout/onepage/review') ?>',
+                saveMethod: '<?php echo $this->getUrl('checkout/onepage/saveMethod') ?>',
+                failure: '<?php echo $this->getUrl('checkout/cart') ?>'
+            }
+        );
+    </script>
+    <script>
+        let DOSTAWAZEWNETRZNAITEMS = false;
+        let DOSTAWAZEW_PROCEEDFORWARD = true;
+    </script>
+    <?php echo $this->getChildHtml("order_before") ?>
+    <?php
+    $quote = $this->getQuote();
+    $itemsWithDataZewArray = array();
+    $allItems = array();
+    foreach ($quote->getAllVisibleItems() as $item) {
+        $prod = Mage::getModel('catalog/product')->load($item->getProduct()->getId());
+        $allItems[] = $prod->getId();
+        if (strlen(trim($prod->getData('dostawa_zew'))) > 0) {
+            $itemsWithDataZewArray[] = $prod->getId();
+        }
+    }
+    $allItemsCount = count($allItems);
+    $itemsWithDataZew = count($itemsWithDataZewArray);
+    $itemsDataZewString = implode(',', $itemsWithDataZewArray);
+    $default_message = 'Część zamówienia zostanie wysłana osobną dostawą powyżej 24h. ';
+    $link_style = '';
+    if($allItemsCount === $itemsWithDataZew) {
+        $link_style = 'display:none;';
+        $default_message = 'Twoje zamówienie w całości zostanie wysłane jedną dostawą w ciągu 2-3 dni roboczych. ';
+    }
+    if ($itemsWithDataZew > 0):
+        ?>
+    <style>
+        .amscheckout .column-section.realizacja-section {
+            border-left: 2px solid;
+            border-right: 2px solid;
+            border-bottom: 2px solid;
+        }
+
+        .amscheckout .column-section.realizacja-section .area-header, .amscheckout .column-section.realizacja-section {
+            border-color: #DF1683;
+        }
+    </style>
+        <ul class="messages dostawa_zew im_visible">
+            <li class="notice-msg">
+                <ul>
+                    <li>
+                        <span><?= $default_message ?></span>
+                        <span class="dostawa_zew_show" style="<?= $link_style ?>">
+                            <span class="trig" data-items="<?= $itemsDataZewString ?>">Kliknij tutaj</span> i zobacz, które to produkty.
+                        </span>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+        <div class="cart-results">
+            <div class="cart-modal-nav">
+                <span class="close"></span>
+            </div>
+            <div class="cart_results_inner">
+                <div class="table_wrap">
+                    <table></table>
+                </div>
+                <div class="goto_cart">
+                    <a href="<?= $this->getUrl('checkout/cart') ?>" title="Przejdź do koszyka">Wróć do koszyka i edytuj produkty</a>
+                    <span class="closeme">Zamknij</span>
+                </div>
+            </div>
+        </div>
+        <script>
+            DOSTAWAZEWNETRZNAITEMS = true;
+            DOSTAWAZEW_PROCEEDFORWARD = false;
+        </script>
+    <?php endif; ?>
+    <form method="post" id="amscheckout-onepage">
+        <input type="hidden" name="delete_cart_id" id="delete_cart_id"/>
+        <input type="hidden" name="updated_section" id="updated_section"/>
+
+
+        <div class="amscheckout-extra" id="amscheckout-extra"></div>
+        <div class="amscheckout-main" id="amscheckout-main">
+            <div id="amscheckout-processing" class="amscheckout-processing" style="display: none;">&nbsp;</div>
+            <div id="amscheckout-loading" class="amscheckout-loading" style="display: none;">&nbsp;</div>
+
+            <?php /*  <div class="amscheckout-header">
+                <div id="amasty-scheckout-login-messagebox" class="amasty-scheckout-login-messagebox"></div>
+                <div class="amscheckout-header-messages">
+                    <div id="amasty-scheckout-messagebox"></div>
+                </div>
+                <div class="amscheckout-header-content">
+                    <div class="lane"><?php echo $this->__($this->stripTags($hlr->getCheckoutTitle()))?></div>
+                    <div class="lane2"><?php echo $this->__($hlr->getCheckoutDescription())?></div>
+                    <?php echo $this->getMessagesBlock()->getGroupedHtml() ?>
+                    <?php if (!$this->isCustomerLoggedIn()): ?>
+                        <?php echo $this->getChildHtml('amscheckout.login');?>
+                    <?php endif; ?>
+                </div>
+
+            </div> */ ?>
+
+
+            <input type="hidden" name="form_key" value="<?php print Mage::getSingleton('core/session')->getFormKey(); ?>"/>
+
+            <div class="amscheckout">
+                <?php
+                switch ($hlr->getLayoutType()) {
+                    case "three_columns":
+                        ?>
+                        <div class="three-columns">
+                            <div class="grid_6">
+                                <div class="content">
+                                    <?php if (!$skipBilling) { ?>
+                                        <div class="column-section" style="display: none;">
+                                            <div class="area-header">
+                                                <?php echo $this->htmlEscape($_areas['billing']['area_label']) ?>
+                                            </div>
+                                            <div class="billing">
+                                                <?php echo $this->getChildHtml("billing") ?>
+                                            </div>
+                                            <br/>
+                                        </div>
+                                    <?php } ?>
+                                    <?php if (!$skipShipping) { ?>
+                                        <div id="shipping_area" class="column-section">
+                                            <div class="area-header">
+                                                <?php echo $this->htmlEscape($_areas['shipping']['area_label']) ?>
+                                            </div>
+                                            <div class="shipping">
+                                                <?php echo $this->getChildHtml("shipping") ?>
+                                            </div>
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            </div>
+                            <div class="grid_6">
+                                <div class="content">
+                                    <?php if (!$skipShippingMethod) { ?>
+                                        <div class="column-section">
+                                            <div class="area-header">
+                                                <?php echo $this->htmlEscape($_areas['shipping_method']['area_label']) ?>
+                                            </div>
+                                            <div class="shipping-method">
+                                                <div id="amscheckout-loading-shipping-method" class="amscheckout-loading" style="display: none;">
+                                                    &nbsp;
+                                                </div>
+                                                <?php echo $this->getChildHtml("shipping_method") ?>
+                                            </div>
+                                        </div><br/>
+                                    <?php } ?>
+                                    <?php if (!$skipPayment) { ?>
+                                        <div class="column-section">
+                                            <div class="area-header s1">
+                                                <?php echo $this->htmlEscape($_areas['payment']['area_label']) ?>
+                                            </div>
+                                            <div class="payment-method">
+                                                <div id="amscheckout-loading-payment-method" class="amscheckout-loading" style="display: none;">
+                                                    &nbsp;
+                                                </div>
+                                                <?php echo $this->getChildHtml("payment") ?>
+                                            </div>
+
+                                        </div><br/>
+                                    <?php } ?>
+                                    <?php if (!$skipShippingMethod) { /*for delivery date picker*/ ?>
+                                        <div class="column-section realizacja-section">
+                                            <div class="area-header">
+                                                <?php $header_msg = 'Termin realizacji';
+                                                if($itemsWithDataZew > 0) {
+                                                    $header_msg = 'Dostawa';
+                                                }
+                                                echo $header_msg; ?>
+                                            </div>
+                                            <div class="shipping-method shipping_date">
+                                                <div id="amscheckout-loading-shipping-method" class="amscheckout-loading" style="display: none;">
+                                                    &nbsp;
+                                                </div>
+                                                <?php echo $this->getChildHtml("shipping_custom_date") ?>
+                                            </div>
+                                        </div><br/>
+                                    <?php } ?>
+                                    <?php if (!$skipGiftCard) { ?>
+                                        <div class="column-section">
+                                            <div class="area-header"></div>
+                                            <div class="giftcards" id="checkout-giftcards">
+                                                <?php echo $this->getChildHtml("giftcards") ?>
+                                            </div>
+                                        </div>
+                                    <?php } ?>
+                                    <?php if (!$skipAmGiftCard) { ?>
+                                        <div class="column-section">
+                                            <div class="area-header"></div>
+                                            <div class="amgiftcards" id="checkout-amgiftcards">
+                                                <?php echo $this->getChildHtml("amgiftcards") ?>
+                                            </div>
+                                        </div>
+                                    <?php } ?>
+                                    <?php if (!$skipCoupon) { ?>
+                                        <div class="column-section">
+                                            <div class="area-header">
+                                                <div class="amscheckout-img">
+                                                    <div class="amscheckout-img">%</div>
+                                                </div>
+                                                <?php echo $this->__("Discount Codes") ?>
+                                            </div>
+                                            <div id="coupon_lookup"></div>
+                                            <div class="coupon" id="checkout-coupon">
+                                                <?php echo $this->getChildHtml("coupon") ?>
+                                            </div>
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            </div>
+                            <div class="grid_6">
+                                <div class="content">
+                                    <?php if (!$skipReview) { ?>
+                                        <div class="column-section">
+                                            <div class="area-header">
+                                                <?php echo $this->htmlEscape($_areas['review']['area_label']) ?>
+                                            </div>
+                                            <?php echo $this->getChildHtml("review") ?>
+                                        </div>
+                                    <?php } ?>
+                                </div>
+                            </div>
+                        </div>
+                        <?php
+
+                        break;
+                    case "two_columns":
+                        ?>
+                        <div class="two-columns">
+                            <div class="first-column">
+                                <?php if (!$skipBilling) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="billing-processing" style="display: none;"
+                                                          class="amscheckout-processing-small">&nbsp;</span>
+                                                    <div id="billing-number">1</div>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['billing']['area_label']) ?>
+                                        </div>
+                                        <div class="billing">
+                                            <?php echo $this->getChildHtml("billing") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipShipping) { ?>
+                                    <div id="shipping_area" class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <div class="amscheckout-shipping">&nbsp;</div>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['shipping']['area_label']) ?>
+                                        </div>
+                                        <div class="shipping">
+                                            <?php echo $this->getChildHtml("shipping") ?>
+                                        </div>
+                                    </div>
+                                <?php } ?>
+                            </div>
+                            <div class="second-column">
+                                <?php if (!$skipShippingMethod) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="shipping-method-processing" style="display: none;" class="amscheckout-processing-small">&nbsp;</span>
+                                                    <span id="shipping-method-number">2</span>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['shipping_method']['area_label']) ?>
+                                        </div>
+                                        <div class="shipping-method">
+                                            <div id="amscheckout-loading-shipping-method" class="amscheckout-loading" style="display: none;">&nbsp;
+                                            </div>
+                                            <?php echo $this->getChildHtml("shipping_method") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipPayment) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="payment-method-processing" style="display: none;" class="amscheckout-processing-small">&nbsp;</span>
+                                                    <span id="payment-method-number"><?php
+                                                        echo($skipShippingMethod ? "2" : "3")
+                                                        ?></span>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['payment']['area_label']) ?>
+                                        </div>
+                                        <div class="payment-method">
+                                            <div id="amscheckout-loading-payment-method" class="amscheckout-loading" style="display: none;">&nbsp;
+                                            </div>
+                                            <?php echo $this->getChildHtml("payment") ?>
+                                        </div>
+
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipGiftCard) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header"></div>
+                                        <div class="giftcards" id="checkout-giftcards">
+                                            <?php echo $this->getChildHtml("giftcards") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipAmGiftCard) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header"></div>
+                                        <div class="amgiftcards" id="checkout-amgiftcards">
+                                            <?php echo $this->getChildHtml("amgiftcards") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipCoupon) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">%</div>
+                                            </div>
+                                            <?php echo $this->__("Discount Codes") ?>
+                                        </div>
+                                        <div id="coupon_lookup"></div>
+                                        <div class="coupon" id="checkout-coupon">
+                                            <?php echo $this->getChildHtml("coupon") ?>
+                                        </div>
+                                    </div>
+                                <?php } ?>
+                                <?php if (!$skipReview) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="review-processing" style="display: none;"
+                                                          class="amscheckout-processing-small">&nbsp;</span>
+                                                    <div id="review-number" class="amscheckout-review">&nbsp;</div>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['review']['area_label']) ?>
+                                        </div>
+                                        <?php echo $this->getChildHtml("review") ?>
+                                    </div>
+                                <?php } ?>
+                            </div>
+                        </div>
+                        <?php
+                        break;
+                    case "one_column":
+                        ?>
+                        <div class="one-columns">
+                            <div class="first-column">
+                                <?php if (!$skipBilling) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="billing-processing" style="display: none;"
+                                                          class="amscheckout-processing-small">&nbsp;</span>
+                                                    <div id="billing-number">1</div>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['billing']['area_label']) ?>
+                                        </div>
+                                        <div class="billing">
+                                            <?php echo $this->getChildHtml("billing") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipShipping) { ?>
+                                    <div id="shipping_area" class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <div class="amscheckout-shipping">&nbsp;</div>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['shipping']['area_label']) ?>
+                                        </div>
+                                        <div class="shipping">
+                                            <?php echo $this->getChildHtml("shipping") ?>
+                                        </div>
+                                    </div>
+                                <?php } ?>
+                                <?php if (!$skipShippingMethod) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="shipping-method-processing" style="display: none;" class="amscheckout-processing-small">&nbsp;</span>
+                                                    <span id="shipping-method-number">2</span>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['shipping_method']['area_label']) ?>
+                                        </div>
+                                        <div class="shipping-method">
+                                            <div id="amscheckout-loading-shipping-method" class="amscheckout-loading" style="display: none;">&nbsp;
+                                            </div>
+                                            <?php echo $this->getChildHtml("shipping_method") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipPayment) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="payment-method-processing" style="display: none;" class="amscheckout-processing-small">&nbsp;</span>
+                                                    <span id="payment-method-number"><?php
+                                                        echo($skipShippingMethod ? "2" : "3")
+                                                        ?></span>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['payment']['area_label']) ?>
+                                        </div>
+                                        <div class="payment-method">
+                                            <div id="amscheckout-loading-payment-method" class="amscheckout-loading" style="display: none;">&nbsp;
+                                            </div>
+                                            <?php echo $this->getChildHtml("payment") ?>
+                                        </div>
+
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipGiftCard) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header"></div>
+                                        <div class="giftcards" id="checkout-giftcards">
+                                            <?php echo $this->getChildHtml("giftcards") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipAmGiftCard) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header"></div>
+                                        <div class="amgiftcards" id="checkout-amgiftcards">
+                                            <?php echo $this->getChildHtml("amgiftcards") ?>
+                                        </div>
+                                    </div><br/>
+                                <?php } ?>
+                                <?php if (!$skipCoupon) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">%</div>
+                                            </div>
+                                            <?php echo $this->__("Discount Codes") ?>
+                                        </div>
+                                        <div id="coupon_lookup"></div>
+                                        <div class="coupon" id="checkout-coupon">
+                                            <?php echo $this->getChildHtml("coupon") ?>
+                                        </div>
+                                    </div>
+                                <?php } ?>
+
+                                <?php if (!$skipReview) { ?>
+                                    <div class="column-section">
+                                        <div class="area-header">
+                                            <div class="amscheckout-img-shadow">
+                                                <div class="amscheckout-img">
+                                                    <span id="review-processing" style="display: none;"
+                                                          class="amscheckout-processing-small">&nbsp;</span>
+                                                    <div id="review-number" class="amscheckout-review">&nbsp;</div>
+                                                </div>
+                                            </div>
+                                            <?php echo $this->htmlEscape($_areas['review']['area_label']) ?>
+                                        </div>
+                                        <?php echo $this->getChildHtml("review") ?>
+                                    </div>
+                                <?php } ?>
+                            </div>
+                        </div>
+                        <?php
+                        break;
+                }
+                ?>
+            </div>
+
+        </div>
+    </form>
+    <script>
+
+        updateCheckout('shipping');
+        var amscheckoutForm = new VarienForm('amscheckout-onepage');
+
+        if ($('billing:use_for_shipping_yes'))
+            $('billing:use_for_shipping_yes').observe("click", function () {
+                $('shipping_area').hide();
+            });
+
+        if ($('billing:use_for_shipping_no'))
+            $('billing:use_for_shipping_no').observe("click", function () {
+                $('shipping_area').show();
+            });
+
+        if ($('shipping:same_as_billing'))
+            $('shipping:same_as_billing').observe("click", function () {
+                $('billing:use_for_shipping_yes').click();
+            });
+
+
+        if (typeof (discountForm) == 'object') {
+            discountForm.submit = function (isRemove) {
+                if (isRemove) {
+                    $('remove-coupone').value = "1";
+                } else {
+                    $('remove-coupone').value = "0";
+                }
+
+                if ($('coupon_code').value != "" || isRemove) {
+                    showLoading();
+                    ajaxUpdate('<?php print $hlr->getCouponUrl();?>', applyCoupon);
+                }
+
+            }
+        }
+
+        <?php if ($hlr->isAmastyCouponsInstalled()) {?>
+        if (typeof (discountForm) == 'object') {
+            discountForm.cancel = function (couponCnt) {
+                var form = $('discount-coupon-cancel-form-' + couponCnt);
+                if (form) {
+                    showLoading();
+                    ajaxUpdate(form.action, applyCoupon, form);
+                }
+            }
+        }
+        <?php }?>
+
+        function sagePayComplete(response) {
+            $('sagepayserver-dummy-link').writeAttribute('href', response.redirect);
+
+            var rbButtons = $('review-buttons-container');
+
+            var lcont = new Element('div', {
+                className: 'lcontainer'
+            });
+            var heit = parseInt(SuiteConfig.getConfig('server', 'iframe_height'));
+            if (Prototype.Browser.IE) {
+                heit = heit - 65;
+            }
+
+            var wtype = SuiteConfig.getConfig('server', 'payment_iframe_position').toString();
+            if (false && wtype == 'modal') {
+                hideLoading();
+                var wm = new Control.Modal('sagepayserver-dummy-link', {
+                    className: 'modal',
+                    iframe: true,
+                    closeOnClick: false,
+                    insertRemoteContentAt: lcont,
+                    height: SuiteConfig.getConfig('server', 'iframe_height'),
+                    width: SuiteConfig.getConfig('server', 'iframe_width'),
+                    fade: true,
+                    afterOpen: function () {
+                        if (rbButtons) {
+                            rbButtons.addClassName('disabled');
+                        }
+                        $$('body')[0].scrollTo();
+                    },
+                    afterClose: function () {
+                        if (rbButtons) {
+                            rbButtons.removeClassName('disabled');
+                        }
+                    }
+                });
+                wm.container.insert(lcont);
+                wm.container.down().setStyle({
+                    'height': heit.toString() + 'px'
+                });
+//                wm.container.down().insert(this.getServerSecuredImage());
+                wm.open();
+
+            } else if (wtype == 'incheckout') {
+
+                var iframeId = 'sagepaysuite-server-incheckout-iframe';
+                var paymentIframe = new Element('iframe', {
+                    'src': response.redirect,
+                    'id': iframeId
+                });
+
+
+                if ($('shopping-cart-table'))
+                    $('shopping-cart-table').hide();
+
+                $('amscheckout-main').hide();
+
+                $('amscheckout-extra').update(paymentIframe);
+                hideLoading();
+
+            } else {
+                setLocation(response.redirect);
+                return;
+            }
+        }
+
+        function isValEmpty(v) // sprawdzanie czy wartość jest pusta
+        {
+            return (v == '' || (v == null) || (v.length == 0) || /^\s+$/.test(v));
+        }
+
+        function isKodValid(v) // sprawdzanie poprawności kodu pocztowego dla PL
+        {
+            return /^\d{2}-\d{3}$/.test(v);
+        }
+
+        function isPhoneValid(v) // sprawdzanie poprawności telefonu (min: 9, max: 11, tylko cyfry)
+        {
+            let isValid = /^[0-9]*$/.test(v);
+            let phoneMaxLen = (v.length >= 9) && (v.length <= 11);
+            return phoneMaxLen && isValid;
+        }
+
+        function checkPrePostData() // sprawdza poprawność wypełniania formularza, jeżeli adres jest nowo tworzony
+        {
+            let data = $('amscheckout-onepage').serialize(true);
+            if (isValEmpty(data['shipping_address_id'])) { // jeżeli adres_id jest puste oznacza to nowy adres
+                let dataToCheck = [
+                    {index: 'shipping[city]', label: 'Miasto'},
+                    {index: 'shipping[firstname]', label: 'Imię'},
+                    {index: 'shipping[lastname]', label: 'Nazwisko'},
+                    {index: 'shipping[postcode]', label: 'Kod pocztowy'},
+                    {index: 'shipping[street][]', label: 'Adres'},
+                    {index: 'shipping[telephone]', label: 'Telefon'},
+                ];
+                let errors_msg = '';
+                jQuery.each(dataToCheck, (index, i_elem) => {
+                    let dataisEmpty = isValEmpty(data[i_elem.index]);
+                    if (i_elem.index === 'shipping[street][]') {
+                        dataisEmpty = isValEmpty(data[i_elem.index][0]);
+                    }
+                    if (dataisEmpty === true) {
+                        errors_msg += i_elem.label + " jest wymaganą wartością \n";
+                    } else {
+                        if (i_elem.index === 'shipping[postcode]' && isKodValid(data[i_elem.index]) === false) {
+                            errors_msg += "Proszę podać poprawną wartość dla kodu pocztowego \n";
+                        }
+                        if (i_elem.index === 'shipping[telephone]' && isPhoneValid(data[i_elem.index]) === false) {
+                            errors_msg += "Proszę podać poprawną wartość dla telefonu (maksymalnie 11 cyfr) \n";
+                        }
+                    }
+                });
+
+                return errors_msg;
+            }
+            return '';
+        }
+
+        function completeCheckout() {
+
+            let prepost_error_msg = checkPrePostData(); // pobieramy treść potencjalnych błędów
+            if (prepost_error_msg.length > 0) { // sprawdzamy długość treśći
+                alert(prepost_error_msg); // zwracamy treść jeżeli jest większa od zera
+            } else { // w przeciwnym razie przekazujemy dane dalej
+                if (!checkoutRunning) {
+                    showLoading();
+                    console.log('completeCheckout showLoading');
+                    checkoutRunning = true;
+
+                    var data = $('amscheckout-onepage').serialize(true);
+
+                    if (typeof (amastyScheckoutLogin) === 'object') {
+                        data = $(data).merge(amastyScheckoutLogin.params());
+                    }
+
+                    new Ajax.Request('<?php print $hlr->getCheckoutUrl();?>', {
+                        method: 'post',
+                        parameters: data,
+                        onSuccess: function (response) {
+                            checkoutRunning = false;
+                            var config = response.responseText.evalJSON();
+
+                            if (config.redirect_url) {
+                                document.location.href = config.redirect_url;
+                            } else if (config.redirect) {
+
+                                if (config.redirect.indexOf("sagepay") != -1 ||
+                                    config.redirect.indexOf("sgps") != -1) {
+
+                                    $$('body')[0].scrollTo();
+
+                                    if (typeof (SageServer) == 'function')
+                                        sagePayComplete.bind(SageServer)(config);
+                                    else
+                                        sagePayComplete(config);
+
+                                } else {
+                                    document.location.href = config.redirect;
+                                }
+
+                            } else if (config.ajax_url) {
+
+                                new Ajax.Request(config.ajax_url, {
+                                    onSuccess: function (response) {
+                                        var config = response.responseText.evalJSON();
+                                        if (config.response_status == "INVALID" &&
+                                            config.response_status_detail
+                                        ) {
+                                            alert(config.response_status_detail);
+                                            hideLoading();
+                                        } else if (config.response_status == "OK" &&
+                                            config.next_url
+                                        ) {
+                                            document.location.href = config.next_url;
+                                        } else if (config.redirect) {
+                                            document.location.href = config.redirect;
+                                        }
+                                    }
+                                });
+                            } else if (config.status == "ok" || (
+                                config.response_status &&
+                                config.response_status.toLocaleLowerCase() == "ok"
+                            )) {
+                                if (config.success === false && config.update_section) { //extra section
+
+                                    if ($('shopping-cart-table'))
+                                        $('shopping-cart-table').hide();
+
+                                    $('amscheckout-main').hide();
+
+                                    $('amscheckout-extra').update(config.update_section.html);
+
+                                    if ($('hss-iframe'))
+                                        $('hss-iframe').show();
+
+                                    hideLoading();
+
+                                } else {
+                                    document.location.href = '<?php print $hlr->getSuccessUrl();?>';
+                                }
+                            } else if (config.response_status == "ERROR" && config.response_status_detail) {
+                                alert(config.response_status_detail);
+                                hideLoading();
+                            } else if (config.error == 1) { //captcha handle
+
+                                alert(config.message);
+                                hideLoading();
+
+                                <?php if(!$this->isCustomerLoggedIn()){ ?>
+                                if ($('guest_checkout')) {
+                                    $('guest_checkout').captcha.refresh();
+                                }
+                                <?php } else { ?>
+                                if ($('register_during_checkout')) {
+                                    $('register_during_checkout').captcha.refresh();
+                                }
+                                <?php } ?>
+
+
+                            } else {
+
+                                if ($('amasty-scheckout-messagebox')) {
+                                    $('amasty-scheckout-messagebox').innerHTML = config.errorsHtml;
+                                    $('amasty-scheckout-messagebox').scrollTo()
+                                } else {
+                                    alert(config.errors);
+                                }
+
+
+                                hideLoading();
+                            }
+
+
+                        },
+                        on403: function () {
+                            document.location.reload();
+                        }
+                    });
+                } else {
+                    let test1 = amscheckoutForm.validator.validate();
+                    let test2 = !checkoutRunning;
+                    console.log('completeCheckout dupa1');
+                    console.log('am check form validate: ', test1);
+                    console.log('checkoutRunning', test2);
+                }
+            }
+        }
+
+        if (payment.initWhatIsCvvListeners) {
+            payment.initWhatIsCvvListeners();
+        }
+
+        <?php
+        foreach($hlr->getBillingUpdatable() as $id){
+        ?>
+        initUpdatableFieldEvent('<?php print $id;?>', 'billing')
+        <?php
+        }
+        ?>
+
+        <?php
+        foreach($hlr->getShippingUpdatable() as $id){
+        ?>
+        initUpdatableFieldEvent('<?php print $id;?>', 'shipping')
+        <?php
+        }
+        ?>
+
+        if (payment && payment.initWhatIsCvvListeners) {
+            payment.initWhatIsCvvListeners();
+        }
+
+        if ($('billing-address-select')) {
+            $('billing-address-select').observe('change', function () {
+                updateCheckout('billing');
+            });
+        }
+
+
+        if ($('shipping-address-select')) {
+            $('shipping-address-select').observe('change', function () {
+                updateCheckout('shipping');
+            });
+        }
+
+
+        reviewEvents();
+        cartEvents();
+
+        <?php if (Mage::getStoreConfig("amscheckout/default/newsletter")){?>
+        if ($('is_subscribed')) {
+            $('is_subscribed').click();
+        }
+        <?php }?>
+
+        <?php if (Mage::helper("amscheckout")->isQuickFirstLoad()) {
+        ?>
+        renderCheckout('billing', null, true);
+        <?php
+        }
+        ?>
+        <?php if(!$this->isCustomerLoggedIn()){ ?>
+        document.body.fire('login:setMethod', {method: 'guest'});
+        <?php } else { ?>
+        document.body.fire('login:setMethod', {method: 'register'});
+        <?php } ?>
+    </script>
+<?php } ?>
+<?php
+if($itemsWithDataZew && $itemsWithDataZew > 0):
+    ?>
+    <script type="text/javascript">
+        jQuery(function ($) {
+
+            if($(document).width() <= 767) {
+                $('.messages.dostawa_zew').removeClass('im_visible');
+            }
+
+            $('.messages.dostawa_zew .dostawa_zew_show .trig').on('click',(evt)=>{
+                if($(document).width() > 767) {
+                    toggleShowDostawaZew(evt.target);
+                    $('html').addClass('cart-results-visible');
+                }
+            });
+
+            $('.cart-results .cart-modal-nav .close').on('click',(evt)=>{
+                hideCartResults();
+            });
+
+            $('.cart_results_inner .goto_cart .closeme').on('click',(evt)=>{
+                hideCartResults();
+            });
+
+            $(document).on('click',function(e) {
+                if($(e.target).hasClass('cart-results') && $(e.target).hasClass('active')) {
+                    hideCartResults();
+                }
+            });
+
+            $(document).on('keyup',function(e) {
+                if (e.key === "Escape") { // escape key maps to keycode `27`
+                    if($('html').hasClass('cart-results-visible')) {
+                        hideCartResults();
+                    }
+                }
+            });
+        });
+        function hideCartResults() {
+            jQuery(function ($) {
+                $('html').removeClass('cart-results-visible');
+                $('div.cart-results .table_wrap table').html('');
+                $('div.cart-results').removeClass('active');
+            });
+        }
+        function showDostawaLoader()
+        {
+            jQuery(function ($) {
+                let loaderhtml = '<div id="subsection-spinner"><div class="spinner"><span class="subsection-spinner-icon"></span></div>';
+                loaderhtml += '<div class="loader-line"></div><div class="loader-line"></div><div class="loader-line"></div>';
+                loaderhtml += '<div class="loader-line"></div><div class="loader-line"></div><div class="loader-line"></div>';
+                loaderhtml += '<div class="loader-line"></div><div class="loader-line"></div><div class="loader-line"></div>';
+                loaderhtml += '</div>';
+                $('div.cart-results .table_wrap').prepend(loaderhtml);
+                $('div.cart-results .table_wrap table').hide();
+            });
+        }
+        function hideDostawaLoader() {
+            jQuery(function ($) {
+                $('div.cart-results .table_wrap #subsection-spinner').remove();
+                $('div.cart-results .table_wrap table').show();
+            });
+        }
+        function toggleShowDostawaZew(item) {
+            jQuery(function ($) {
+                let data_to_send = $(item).attr('data-items');
+                let current_url = location.protocol + '//' + location.hostname + (location.port ? ':' + location.port : '');
+                let control_url = current_url + '/productsubstitutes/dostawazew/getdostawazewitems';
+                let my_response = {};
+                showDostawaLoader();
+                $('div.cart-results table').html('');
+                $('div.cart-results').addClass('active');
+                $.ajax({
+                    type: 'post',
+                    data: {data_zew_ids: data_to_send},
+                    url: control_url,
+                    success: function (response) {
+                        if(response.tr_ids.length > 0) {
+                            let check_trs = response.tr_ids;
+                            $.get(response.getURL, function (data) {
+                                let dostawaZewRows = new Array();
+                                let tableHeaders = $(data).find('form#cart_form table#shopping-cart-table thead').html();
+                                $('div.cart-results table').append('<thead>'+tableHeaders+'</thead><tbody></tbody>');
+                                let tableRows = $(data).find('form#cart_form table#shopping-cart-table tbody tr');
+                                tableRows.each((index,element) =>{
+                                    $.each(check_trs,(tr_index,tr_id)=>{
+                                        if($(element).attr('data-id') === tr_id) {
+                                            dostawaZewRows.push($(element).html());
+                                            $('div.cart-results table tbody').append('<tr>'+$(element).html()+'</tr>')
+                                        }
+                                    });
+                                });
+                                hideDostawaLoader();
+                            });
+                        } else {
+                            hideDostawaLoader();
+                        }
+                    },
+                    error: function (jqXHR, textStatus, errorThrown) {
+                        console.log('An error occurred');
+                        my_response.status = 'An error occurred';
+                        my_response.jqXHR = jqXHR;
+                        my_response.textStatus = textStatus;
+                        my_response.errorThrown = errorThrown;
+                        console.log(my_response);
+                        hideDostawaLoader();
+                        hideCartResults();
+                    }
+                });
+            });
+        }
+    </script>
+    <style>
+        .custom-cart-summary {
+            display: grid;
+            gap: 0px 0px;
+            justify-content: stretch;
+            align-content: stretch;
+            justify-items: stretch;
+            align-items: stretch;
+        }
+
+        .custom-cart-summary {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-areas:
+        "firstrow firstrow firstrow"
+        "secondrowA secondrowB secondrowC";
+        }
+
+        .custom-cart-summary.my-custom-grid_2 {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-areas:
+        "firstrow firstrow"
+        "secondrowA secondrowB";
+        }
+
+        .custom-cart-summary.my-custom-grid_1 {
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-areas:
+        "firstrow"
+        "secondrow";
+        }
+
+        .custom-cart-summary.my-custom-grid_2.show_shipping > .ccs-item_shipping {
+            grid-area: secondrowA;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.show_shipping.hide_promos > .ccs-item_promos {
+            grid-area: secondrowA;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.show_shipping > .ccs-item_summary {
+            grid-area: secondrowB;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.show_promos > .ccs-item_shipping {
+            grid-area: secondrowA;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.show_promos.hide_shipping > .ccs-item_promos {
+            grid-area: secondrowA;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.hide_promos.hide_shipping > .ccs-item_shipping {
+            grid-area: secondrowA;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.hide_promos.hide_shipping > .ccs-item_promos {
+            grid-area: secondrowA;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.show_promos > .ccs-item_summary {
+            grid-area: secondrowB;
+        }
+
+        .custom-cart-summary.my-custom-grid_1 > .css-item {
+            grid-area: secondrow;
+        }
+
+        .custom-cart-summary > .top-line {
+            grid-area: firstrow;
+        }
+
+        .custom-cart-summary > .ccs-item {
+            width: 100% !important;
+        }
+
+        .custom-cart-summary.my-custom-grid_3 > .ccs-item_promos {
+            grid-area: secondrowB;
+        }
+
+        .custom-cart-summary.my-custom-grid_3 > .ccs-item_shipping {
+            grid-area: secondrowA;
+        }
+
+        .custom-cart-summary.my-custom-grid_3 > .ccs-item_summary {
+            grid-area: secondrowC;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_coupon {
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-areas:
+        "firstrow firstrow firstrow"
+        "secondrowA secondrowA secondrowB";
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_nocoupon {
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-areas:
+        "firstrow firstrow firstrow"
+        "secondrowA secondrowB";
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_nocoupon .ccs-item.ccs-item_promos {
+            display: grid;
+            gap: 0px 20px;
+            justify-content: stretch;
+            align-content: start;
+            justify-items: stretch;
+            align-items: stretch;
+            grid-template-columns: repeat(1, 1fr);
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_coupon .ccs-item.ccs-item_promos {
+            display: grid;
+            gap: 0px 20px;
+            justify-content: stretch;
+            align-content: start;
+            justify-items: stretch;
+            align-items: stretch;
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .price.discount {
+            margin-left: 5px;
+            color: green;
+            font-size: 13px;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_nocoupon .ccs-item_shipping,
+        .custom-cart-summary.my-custom-grid_2.prent_coupon .ccs-item_shipping {
+            display: none !important;
+        }
+
+        .price.discount.currency {
+            display: block;
+            margin: 0;
+        }
+
+        .ccs-item > .block {
+            box-shadow: 0px 0px 4px rgb(0 0 0 / 20%);
+        }
+
+        @media all and (max-width: 767px) {
+            #shopping-cart-table tr {
+                margin: 0 0 20px;
+                padding: 0 0 12px;
+                box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.3);
+            }
+
+            #shopping-cart-table tr td {
+                margin: 0 0px;
+                padding: 5px;
+                width: 100%;
+                box-sizing: border-box;
+                background: #fff;
+                border: 0;
+            }
+
+
+            #shopping-cart-table tr.odd,
+            #shopping-cart-table tr.odd td {
+                background: #f0f0f0;
+            }
+
+            .custom-cart-summary {
+                grid-template-columns: repeat(1, 1fr);
+                grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB"
+            "secondrowC";
+            }
+
+            .custom-cart-summary.my-custom-grid_2 {
+                grid-template-columns: repeat(1, 1fr);
+                grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB";
+            }
+
+            .custom-cart-summary.my-custom-grid_1 {
+                grid-template-columns: repeat(1, 1fr);
+                grid-template-areas:
+            "firstrow"
+            "secondrow";
+            }
+
+            .custom-cart-summary.my-custom-grid_2.prent_coupon {
+                grid-template-columns: repeat(1, 1fr);
+                grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB";
+            }
+
+            .custom-cart-summary.my-custom-grid_2.prent_nocoupon {
+                grid-template-columns: repeat(1, 1fr);
+                grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB";
+            }
+
+            .data-table .td-title {
+                display: inline-block;
+                width: auto;
+            }
+
+            .custom-cart-summary.my-custom-grid_2.prent_coupon .ccs-item.ccs-item_promos {
+                grid-template-columns: repeat(1, 1fr);
+            }
+        }
+
+        .ccs-item_summary ul.checkout-types > li {
+            display: inline-block;
+            width: 100%;
+            float: none;
+            text-align: center !important;
+        }
+
+        .ccs-item_summary ul.checkout-types > li .proceed-checkout-wrap {
+            padding: 0;
+            text-align: left;
+            width: 100%;
+            text-align: center;
+        }
+
+
+        .ccs-item_summary ul.checkout-types {
+            text-align: left;
+            padding: 0 20px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-columns: 1fr;
+            gap: 0px 5px;
+            grid-auto-flow: row;
+        }
+
+        .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button > span {
+            text-align: center !important;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button > span span {
+            background-position: left;
+            background-image: none;
+            padding: 0;
+            text-align: center !important;
+        }
+
+        .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button > span:before {
+            background-color: #00a9bb;
+        }
+
+        .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button {
+            width: 100%;
+            text-align: center;
+        }
+
+        .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button span {
+            float: none;
+        }
+
+        @media all and (max-width: 767px) {
+            .ccs-item_summary ul.checkout-types {
+                grid-template-columns: repeat(1, 1fr);
+                gap: 5px 5px;
+            }
+
+            .ccs-item_summary ul.checkout-types > li {
+                width: 100%;
+            }
+
+            .block_totals button.button {
+                width: 100%;
+            }
+
+            .block_totals button.button span {
+                float: none;
+            }
+
+            .main-container > .footer-container {
+                display: none;
+            }
+
+            .main-container > .content-container {
+                padding-bottom: 90px;
+            }
+        }
+
+        /* min logistic - css from here */
+        .block_totals #shopping-cart-totals-table td + td span.pro-forma {
+            display: block;
+            white-space: initial;
+        }
+
+        .custom-cart-summary > .ccs-item_shipping .discount {
+            box-sizing: border-box;
+            padding-left: 35px;
+        }
+
+        .custom-cart-summary > .ccs-item_shipping .block_coupon {
+            position: relative;
+        }
+
+        .custom-cart-summary > .ccs-item_shipping .discount .hidden-info,
+        .block_totals #shopping-cart-totals-table tfoot .hidden-info {
+            position: absolute;
+            top: 18px;
+            left: 20px;
+        }
+
+        .custom-cart-summary > .ccs-item_shipping .discount .hidden-info .hidden-info_question,
+        .block_totals #shopping-cart-totals-table tfoot .hidden-info .hidden-info_question {
+            width: 20px;
+            height: 20px;
+            line-height: 20px;
+            display: block;
+            text-align: center;
+            color: #fff;
+            background: black;
+            border-radius: 100%;
+            font-size: 11px;
+            cursor: help;
+        }
+
+        .custom-cart-summary > .ccs-item_shipping .discount .hidden-info .hidden-info_answer,
+        .block_totals #shopping-cart-totals-table tfoot .hidden-info .hidden-info_answer {
+            background: black;
+            color: white;
+            display: BLOCK;
+            position: absolute;
+            max-width: 370px;
+            width: 370px;
+            box-sizing: border-box;
+            padding: 5px 10px;
+            top: 0;
+            left: 27px;
+            visibility: hidden;
+            opacity: 0;
+            z-index: -1;
+
+        }
+
+        .custom-cart-summary > .ccs-item_shipping .discount .hidden-info .hidden-info_answer:before,
+        .block_totals #shopping-cart-totals-table tfoot .hidden-info .hidden-info_answer:before {
+            position: absolute;
+            top: 5px;
+            left: -10px;
+            border: 5px solid transparent;
+            border-right-color: #000000;
+            content: '';
+
+        }
+
+        .custom-cart-summary > .ccs-item_shipping .discount .hidden-info:hover .hidden-info_answer,
+        .block_totals #shopping-cart-totals-table tfoot .hidden-info:hover .hidden-info_answer {
+            opacity: 1;
+            visibility: visible;
+            z-index: 1;
+        }
+
+        .block_totals button.button.no-checkout,
+        .page-title.title-buttons button.button.no-checkout {
+            opacity: 0.5;
+        }
+
+        .block_totals button.button.no-checkout:hover span:before,
+        .block_totals button.button.no-checkout:hover span:after,
+        .page-title.title-buttons button.button.no-checkout:hover span:before,
+        .page-title.title-buttons button.button.no-checkout:hover span:after {
+            background-color: #003543;
+        }
+
+        .block_totals #shopping-cart-totals-table tfoot .hidden-info {
+            top: 6px;
+            left: -20px;
+        }
+
+        /* min logistic - css to here */
+        span.showhide_items {
+            cursor: pointer;
+            position: relative;
+            display: block;
+            margin-top: 5px;
+            box-sizing: border-box;
+            padding-left: 10px;
+            font-size: 13px;
+            text-decoration: underline;
+            margin-bottom: 5px;
+            color: #00a9bb;
+            font-weight: 600;
+        }
+
+        .show_hide_atrs .showhide_item {
+            display: none;
+        }
+
+        span.showhide_items:before {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            border: 4px solid transparent;
+            border-left-color: #00a9bb;
+            content: '';
+            transform: translateY(-50%);
+        }
+
+        .show_hide_atrs.showthem .showhide_item {
+            display: block;
+            box-sizing: border-box;
+            padding-left: 10px;
+        }
+
+        .show_hide_atrs.showthem span.showhide_items:before {
+            border-left-color: transparent;
+            border-top-color: #00a9bb;
+            top: calc(50% + 2px);
+        }
+        .attributes_hidden {
+            /*display: none !important;*/
+        }
+
+        .show_hide_atrs.mobiles_atrs {
+            display: none;
+        }
+
+        td.additional_data_item.add_info {
+            vertical-align: middle;
+        }
+
+        .data-table tbody tr.even td {
+            background: #f4f4f4;
+            border-right-color: #f4f4f4;
+        }
+
+        .data-table tbody tr td:first-of-type {
+            text-align: left;
+            padding: 13px 19px;
+        }
+
+        td.additional_data_item.add_info .show_hide_atrs {
+            display: grid;
+            align-content: center;
+            justify-content: start;
+            align-items: start;
+            justify-items: start;
+            grid-template-columns: repeat(2, 1fr);
+            height: 100%;
+        }
+
+        .tr_additional_data {
+            display: none;
+        }
+
+        td.additional_data_item.add_images .add_images_wrap {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-content: center;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 10px;
+        }
+
+        td.additional_data_item.add_images .add_images_wrap img.showhide_item.item_image {
+            height: auto;
+            max-width: 100%;
+            max-height: 140px;
+        }
+
+        .data-table tbody tr td:first-of-type .product-name {
+            font-weight: 600;
+        }
+
+        .data-table tbody tr td:first-of-type .product-name a:hover {
+            color: #00a9bb;
+        }
+
+        td.additional_data_item.add_images .add_images_wrap a {
+            padding: 0;
+            height: auto;
+            max-width: calc(50% - 20px);
+            max-height: 140px;
+        }
+
+        .show_all_data_wrap {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-content: center;
+            justify-content: flex-start;
+            align-items: center;
+            gap: 5px;
+            box-sizing: border-box;
+            padding: 5px;
+            margin-bottom: 10px;
+            max-width: 300px;
+        }
+
+        @media all and (max-width: 767px) {
+            .show_hide_atrs.mobiles_atrs {
+                display: block;
+            }
+
+            .show_hide_atrs:not(.mobiles_atrs) {
+                display: none;
+            }
+
+            #shopping-cart-table tr.odd {
+                background: #f0f0f0 !important;
+            }
+
+            td.additional_data_item.add_info .show_hide_atrs {
+                grid-template-columns: repeat(1, 1fr);
+            }
+        }
+        span#empty_cart_button-trig,
+        .fake_btn {
+            overflow: visible;
+            width: auto;
+            border: 0;
+            margin: 0;
+            background: transparent;
+            cursor: pointer;
+            background-color: #00a9bb;
+            color: #fff;
+            position: relative;
+            outline: none;
+            display: inline-block;
+            height: 30px;
+            font-weight: 800;
+            font-size: 14px;
+            line-height: 30px;
+            white-space: nowrap;
+            z-index: 1;
+            padding: 0 11px;
+            text-align: center;
+            font-family: "Lato", Arial, sans-serif;
+            letter-spacing: -1px;
+            cursor: pointer;
+        }
+
+        span#empty_cart_button-trig:hover,
+        .fake_btn:hover {
+            background-color: #013c4d;
+        }
+
+        .fake_btn {
+            float: left;
+            margin: 0 3px;
+        }
+
+        .data-table .btn-continue {
+            margin-right: 2px;
+        }
+
+        /*clear popup*/
+        .clear_cart-warn {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #fff;
+            font-size: 15px;
+            line-height: initial;
+            box-sizing: border-box;
+            max-width: 320px;
+            /* padding: 10px; */
+            text-align: center;
+            box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.3);
+            z-index: 99;
+        }
+
+        .clear_cart-warn > div {
+            display: block;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .clear_cart-warn > div:last-child {
+            margin-bottom: 0;
+        }
+
+        .clear_cart-warn > .cc_warn-title {
+            font-weight: 600;
+            color: #fff;
+            background: #003543;
+            padding: 5px 0;
+        }
+
+        .clear_cart-warn:not(.activated) {
+            visibility: hidden;
+            opacity: 0;
+            z-index: -1;
+        }
+
+        .clear_cart-warn.activated {
+            visibility: visible;
+            opacity: 1;
+            z-index: 99;
+        }
+
+        .ccwrap-overlay {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background: rgb(0 0 0 / 65%);
+            z-index: 98;
+        }
+
+        .clear_cart-warn > div.cc_warn-btns {
+            padding-bottom: 10px;
+        }
+
+        .clear_cart-warn > div.cc_warn-btns {
+            padding-bottom: 10px;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-content: center;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        span.cc_warn-cancel {
+            overflow: visible;
+            width: auto;
+            border: 0;
+            margin: 0;
+            background: transparent;
+            background-color: #00a9bb;
+            color: #fff;
+            position: relative;
+            outline: none;
+            display: inline-block;
+            height: 30px;
+            font-weight: 800;
+            font-size: 14px;
+            line-height: 30px;
+            white-space: nowrap;
+            z-index: 1;
+            padding: 0px 11px;
+            text-align: center;
+            font-family: "Lato", Arial, sans-serif;
+            letter-spacing: -1px;
+            cursor: pointer;
+        }
+
+        span.cc_warn-cancel:hover {
+            background-color: #003543;
+        }
+
+        span.is_inox_label {
+            background: #013C4D;
+            color: #fff;
+            box-sizing: border-box;
+            padding: 1px 5px 0;
+            font-weight: 600;
+            display: inline-block;
+            border-radius: 6px;
+            font-size: 10px;
+        }
+        .attrhidden_content {
+            position: absolute;
+            top: 50%;
+            left: 25px;
+            background: #eee;
+            box-sizing: border-box;
+            padding: 8px;
+            box-shadow: 0px 0px 3px rgb(0 0 0 / 20%);
+            opacity: 0;
+            visibility: hidden;
+            width: max-content;
+            max-width: 320px;
+            border: 2px solid #000;
+            transform: translateY(-50%);
+            text-align: left;
+        }
+
+        .attributes_hidden {
+            position: relative;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        span.attrhidden_tool {
+            display: inline-block;
+            box-sizing: border-box;
+            line-height: 16px;
+            width: 15px;
+            height: 15px;
+            border-radius: 100%;
+            color: #fff;
+            background: #000;
+            text-align: center;
+            cursor: pointer;
+        }
+
+
+        .attributes_hidden:hover .attrhidden_content {
+            opacity: 1;
+            visibility: visible;
+            z-index: 1;
+        }
+
+        .attributes_hidden {
+            order: 0;
+        }
+
+        .attrhidden_content:before {
+            position: absolute;
+            top: 50%;
+            left: -15px;
+            border: 7px solid transparent;
+            border-right-color: black;
+            content: '';
+            transform: translateY(-50%);
+        }
+        .td-qty .qty-container {
+            display: inline-block;
+        }
+
+        td.td-qty {
+            /*    text-align: left !important;*/
+            padding-left: 10px;
+        }
+
+        .opakowanie_zbiorcze .opak_icon + .opak_tooltip {
+            position: absolute;
+            width: 170px;
+            height: 30px;
+            display: block;
+            bottom: -35px;
+            left: -110px;
+            text-align: center;
+            vertical-align: middle;
+            background: green;
+            color: #fff;
+            line-height: 30px;
+            border-radius: 50px;
+            z-index: -1;
+            opacity: 0;
+            font-weight: 600;
+        }
+
+        .opakowanie_zbiorcze .opak_icon > img {
+            max-width: 30px;
+            width: 100%;
+            height: auto;
+        }
+
+        .opakowanie_zbiorcze:hover .opak_tooltip,
+        .opakowanie_zbiorcze.show_tool .opak_tooltip {
+            z-index: 1;
+            opacity: 1;
+            transition: opacity 0.5s ease;
+        }
+
+        span.opakowanie_zbiorcze {
+            max-width: 30px;
+            width: 100%;
+            height: auto;
+            display: inline-block;
+            position: relative;
+            vertical-align: top;
+        }
+
+        .td-qty .qty-container {
+            max-width: 75px;
+        }
+
+        .opaks_wrap {
+            display: grid;
+            max-width: 100%;
+            width: 100%;
+            grid-template-columns: 30px 30px 40px;
+            justify-content: center;
+            align-items: center;
+        }
+
+        @media all and (max-width: 767px) {
+            .td-qty .qty-container {
+                max-width: 185px;
+                width: 100%;
+            }
+
+            .opaks_wrap {
+                grid-template-columns: 30px 30px;
+                padding-left: 5px;
+            }
+        }
+
+        #cart_information_wrap {
+            width: 100%;
+            display: flex;
+            flex-flow: row;
+            margin-bottom: 10px;
+            justify-content: center;
+        }
+
+        #cart_information_wrap span {
+            color: #6E6E6E;
+            font-family: "Montserrat", Arial, sans-serif;
+            font-size: 13px;
+        }
+
+        #cart_information_wrap > .cart_information_block {
+            position: relative;
+            width: 25%;
+            background-color: #f4f4f4;
+            padding: 18px 19px 19px 19px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        #cart_information_wrap > .cart_information_block:not(:last-child) {
+            margin-right: 3px;
+        }
+
+        #cart_information_wrap > .cart_information_block .text {
+            padding-left: 25%;
+            width: 25%;
+        }
+
+        #cart_information_wrap > .cart_information_block .value span {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        #cart_information_wrap > .cart_information_block .value {
+            width: 45%;
+            text-align: right;
+            padding-right: 20px;
+        }
+
+        #cart_information_wrap > .cart_information_block .title:before {
+            content: "";
+            display: block;
+            width: 60px;
+            height: 60px;
+            background-size: 60px 60px;
+            position: absolute;
+            left: 8%;
+            top: 15%;
+        }
+
+        #cart_information_wrap > .cart_information_block.ilosc .title:before {
+            background-image: url('/media/wysiwyg/cart/package.svg');
+        }
+
+        #cart_information_wrap > .cart_information_block.wartosc .title:before {
+            background-image: url('/media/wysiwyg/cart/cart.svg');
+        }
+
+        #cart_information_wrap > .cart_information_block.waga .title:before {
+            background-image: url('/media/wysiwyg/cart/scale.svg');
+        }
+
+        #cart_information_wrap > .cart_information_block.znizki .title:before {
+            background-image: url('/media/wysiwyg/cart/percent.svg');
+            background-size: 140px 140px;
+        }
+
+        td.additional_data_item.add_info,
+        span.add_info_item {
+            font-weight: 600;
+        }
+
+        td.additional_data_item.add_info b,
+        td.additional_data_item.add_info strong
+        span.add_info_item b,
+        span.add_info_item strong {
+            font-weight: 400;
+        }
+
+        @media all and (max-width: 1360px) {
+            #cart_information_wrap > .cart_information_block .text {
+                padding-left: 30%;
+            }
+        }
+
+        @media all and (max-width: 1024px) {
+            #cart_information_wrap {
+                flex-wrap: wrap;
+                margin-bottom: 30px;
+            }
+
+            #cart_information_wrap > .cart_information_block {
+                flex: 1 0 30%;
+                margin-bottom: 10px;
+            }
+
+            #cart_information_wrap > .cart_information_block .title:before {
+                top: 8%;
+            }
+        }
+
+        @media all and (max-width: 767px) {
+            #cart_information_wrap {
+                flex-flow: column;
+                flex-wrap: unset;
+            }
+
+            #cart_information_wrap > .cart_information_block {
+                flex: unset;
+                width: 100%;
+                padding: 24px 12px;
+            }
+
+            #cart_information_wrap > .cart_information_block .title:before {
+                top: 15%;
+            }
+
+            .cart-table tfoot td .btn-continue {
+                margin: 0 0;
+                display: inline-block;
+            }
+
+            .fake_btn {
+                float: none;
+                display: inline-block;
+            }
+        }
+
+        .cenax-tool {
+            position: relative;
+        }
+
+        .cenax-tool:hover > .tool {
+            display: block !important;
+            position: absolute;
+            bottom: calc(100% + 5px);
+            width: 280px;
+            color: #fff;
+            background: #013c4d;
+            box-sizing: border-box;
+            padding: 5px;
+            border-radius: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+            white-space: initial;
+        }
+
+        span.price.cenac2-old {
+            position: relative;
+        }
+
+        span.price.cenac2-old:before {
+            position: absolute;
+            content: attr(data-title);
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        span.price.cenac2-old:hover:before {
+            opacity: 0;
+            visibility: hidden;
+            top: -32px;
+            background: #003543;
+            color: #ffffff;
+            left: 50%;
+            transform: translateX(-50%);
+            box-sizing: border-box;
+            padding: 5px;
+            border-radius: 5px;
+            letter-spacing: 0px;
+            font-size: 14px;
+        }
+
+        .dostawa-zew-tooltip {
+            position: relative;
+        }
+
+        .dostawa-zew-tooltip img {
+            max-width: 40px;
+            width: 40px;
+            height: 25px;
+            object-fit: cover;
+        }
+
+        .dostawa-zew-tooltip .opak_icon {
+            display: block;
+        }
+
+        .dostawa-zew-tooltip .opak_icon + .opak_tooltip {
+            position: absolute;
+            width: 230px;
+            right: -10px;
+            display: block;
+            top: calc(100% + 3px);
+            text-align: center;
+            vertical-align: middle;
+            z-index: -1;
+            opacity: 0;
+            font-weight: 400;
+            font-size: 13px;
+            white-space: break-spaces;
+            height: auto;
+            line-height: 18px;
+            border-radius: 8px;
+            padding: 5px;
+            background: #efefef;
+            color: #000;
+            box-shadow: 0 0 0px 1px #000;
+            overflow: visible;
+        }
+
+        .dostawa-zew-tooltip:hover .opak_icon + .opak_tooltip {
+            opacity: 1;
+            z-index: 1;
+            font-weight: 400;
+            font-size: 13px;
+            white-space: break-spaces;
+            height: auto;
+            line-height: 18px;
+            border-radius: 8px;
+            padding: 5px;
+            background: #efefef;
+            color: #000;
+            box-shadow: 0 0 0px 1px #000;
+            overflow: visible;
+        }
+
+        .dostawa-zew-tooltip:hover .opak_icon + .opak_tooltip:before {
+            position: absolute;
+            content: '';
+            border: 5px solid transparent;
+            border-bottom-color: #000;
+            top: -10px;
+            right: 20px;
+        }
+        .messages.dostawa_zew.im_visible {
+            display: block;
+            border:2px solid #df1683;
+        }
+        .messages.dostawa_zew:not(.im_visible) {
+            display: none !important;
+        }
+        .messages.dostawa_zew ul li {
+            font-weight: 400;
+            font-size: 15px;
+            letter-spacing: 0;
+        }
+
+        .messages.dostawa_zew .dostawa_zew_show .trig {
+            text-decoration: underline;
+            color: #00a9bb;
+            cursor: pointer;
+        }
+        .messages.dostawa_zew li.notice-msg:before {
+            background: url('/media/wysiwyg/ikonografikacech/pickup-car.png');
+            background-size: 45px;
+            width: 45px;
+            height: 45px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .cart-results tbody tr td:first-child,
+        .cart-results thead tr th:first-child{
+            display: none !important;
+        }
+        .cart-results .td-qty .qty-container .f-right {
+            display: none !important;
+        },
+        .cart-results .td-qty .qty-container label,
+        .cart-results tbody .td-title {
+            display: none;
+        }
+        .cart-results .td-qty .qty-container label,
+        .cart-results tbody .td-title,
+        .cart-results tbody .show_hide_atrs {
+            display: none;
+        }
+
+        .cart-results thead th {
+            text-align: center;
+            background: #ddd;
+        }
+
+        .cart-results input {
+            pointer-events: none;
+            text-align: center !important;
+        }
+
+        .cart-results thead th:nth-of-type(1),.cart-results thead th:nth-of-type(2),.cart-results thead th:nth-of-type(3) {
+            text-align: left;
+        }
+        .active.cart-results {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: rgb(0 0 0 / 30%);
+            z-index: 999;
+            transform: translate(-50%,-50%);
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-content: center;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .active.cart-results .table_wrap {
+            background: #fff;
+            max-width: 1200px;
+            width: 100%;
+            padding-bottom: 40px;
+            overflow-x: hidden;
+            position: relative;
+            max-height: 50vh;
+        }
+
+        .active.cart-results .table_wrap th {
+            font-weight: 600;
+            vertical-align: bottom;
+        }
+
+        .active.cart-results .table_wrap table {
+            background: #fff;
+            height: auto;
+        }
+
+        .active.cart-results .cart-modal-nav {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 30px;
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-content: center;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        .active.cart-results .cart-modal-nav .close {
+            display: block;
+            background: #013C4D;
+            width: 30px;
+            height: 30px;
+            position: relative;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+        }
+
+        .active.cart-results .cart-modal-nav .close:before,
+        .active.cart-results .cart-modal-nav .close:after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%) rotate(45deg);
+            background: white;
+            width: 25px;
+            height: 2px;
+        }
+        .active.cart-results .cart-modal-nav .close:after {
+            transform: translate(-50%,-50%) rotate(-45deg);
+        }
+
+        @-webkit-keyframes subsection-spinner {
+            0%   { -webkit-transform: rotate(0deg); }
+            100% { -webkit-transform: rotate(360deg); }
+        }
+        @keyframes subsection-spinner {
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        #subsection-spinner .subsection-spinner-icon {
+            width: 40px;
+            height: 40px;
+            box-sizing: border-box;
+            border: solid 3px transparent;
+            border-top-color: #00a9bb;
+            border-left-color: #00a9bb;
+            border-radius: 50%;
+            display: block;
+            -webkit-animation: subsection-spinner 600ms linear infinite;
+            animation: subsection-spinner 600ms linear infinite;
+            background: #013c4d;
+            box-sizing: border-box;
+            box-shadow: 0 0 0 5px #013c4d;
+        }
+        #subsection-spinner .spinner {
+            display: block;
+            position: absolute;
+            z-index: 1031;
+            /*top: 15px;
+            right: 15px;*/
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            width: 50px;
+            height: 50px;
+        }
+        div#subsection-spinner {
+            background: #ffffff;
+            overflow: hidden;
+            width: calc(100%);
+            margin-left: 0px;
+            margin-right: 0px;
+            padding-top: 10px;
+            position: relative;
+        }
+        .loader-line {
+            width: calc(100% - 40px);
+            height: 30px;
+            box-sizing: border-box;
+            margin: 0 20px 10px;
+            background: #efefef;
+            border-radius: 8px;
+            filter: blur(1px);
+            position: relative;
+            overflow: hidden;
+        }
+        .loader-line:after {
+            content:'';
+            top:0;
+            transform:translateX(100%);
+            width:100%;
+            height:220px;
+            position: absolute;
+            animation: subslide 1s infinite 0.1s linear;
+            z-index:1;
+            background: -moz-linear-gradient(left, rgba(255,255,255,0) 0%, rgb(209 209 209 / 40%) 50%, rgba(128,186,232,0) 99%, rgba(125,185,232,0) 100%); /* FF3.6+ */
+            background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba(255,255,255,0)), color-stop(50%,rgb(209 209 209 / 40%)), color-stop(99%,rgba(128,186,232,0)), color-stop(100%,rgba(125,185,232,0))); /* Chrome,Safari4+ */
+            background: -webkit-linear-gradient(left, rgba(255,255,255,0) 0%,rgb(209 209 209 / 40%) 50%,rgba(128,186,232,0) 99%,rgba(125,185,232,0) 100%); /* Chrome10+,Safari5.1+ */
+            background: -o-linear-gradient(left, rgba(255,255,255,0) 0%,rgb(209 209 209 / 40%) 50%,rgba(128,186,232,0) 99%,rgba(125,185,232,0) 100%); /* Opera 11.10+ */
+            background: -ms-linear-gradient(left, rgba(255,255,255,0) 0%,rgb(209 209 209 / 40%) 50%,rgba(128,186,232,0) 99%,rgba(125,185,232,0) 100%); /* IE10+ */
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%,rgb(209 209 209 / 40%) 50%,rgba(128,186,232,0) 99%,rgba(125,185,232,0) 100%); /* W3C */
+        }
+        .loader-line:nth-of-type(1):after {
+            animation: subslide 1s infinite 0.1s linear;
+        }
+        .loader-line:nth-of-type(2):after {
+            animation: subslide 1s infinite 0.2s linear;
+        }
+        .loader-line:nth-of-type(3):after {
+            animation: subslide 1s infinite 0.3s linear;
+        }
+        /* animation */
+        @keyframes subslide {
+            0% {transform:translateX(-100%);}
+            100% {transform:translateX(100%);}
+        }
+        html.cart-results-visible {
+            overflow: hidden;
+        }
+        @media all and (max-width: 1024px) {
+            .cart-results tbody td:nth-of-type(5), .cart-results thead th:nth-of-type(5) {
+                display: none;
+            }
+            .cart-results .opaks_wrap {
+                display: none;
+            }
+        }
+        @media all and (max-width: 959px) {
+            .cart-results tbody td:nth-of-type(3), .cart-results thead th:nth-of-type(3) {
+                display: none;
+            }
+        }
+        .cart-results:not(.active) .cart_results_inner {
+            display: none;
+        }
+        .cart_results_inner .goto_cart {
+            margin: 10px 0;
+            text-align: center;
+        }
+        .cart_results_inner .goto_cart > a {
+            background: #00adbe;
+            color: #fff;
+            font-size: 18px;
+            box-sizing: border-box;
+            padding: 10px 20px;
+            display: inline-block;
+            border-radius: 5px;
+        }
+    </style>
+    <style>
+        #ask_to_proceed {
+            display: block;
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            cursor: auto !important;
+            z-index: 9999;
+        }
+        #ask_to_proceed .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            max-width: 780px;
+            width: auto !important;
+            display: inline-block;
+            box-sizing: border-box;
+            position: relative;
+        }
+        #ask_to_proceed .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: -10px;
+            right: 0;
+        }
+        #ask_to_proceed .close:hover,#ask_to_proceed .close:focus {color: black;text-decoration: none;cursor: pointer;}
+        #ask_to_proceed .modal-content .minner {
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        #ask_to_proceed .mbuttons {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-content: center;
+            justify-content: space-around;
+            align-items: center;
+            margin-top: 20px;
+        }
+        #ask_to_proceed .mbuttons > span {
+            background: #062f43;
+            color: #fff;
+            box-sizing: border-box;
+            padding: 6px 15px;
+            font-size: 13px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #ask_to_proceed .mbuttons > span.mback {
+            background: #00a9bb;
+        }
+        .cart_results_inner .goto_cart {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-content: center;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .cart_results_inner .goto_cart .closeme {
+            background: #003543;
+            color: #fff;
+            font-size: 18px;
+            box-sizing: border-box;
+            padding: 10px 20px;
+            display: inline-block;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .cart_results_inner .goto_cart .closeme:hover, .cart_results_inner .goto_cart a:hover {background: #007480;}
+    </style>
+<?php endif; ?>
+<style>
+    .amscheckout > .three-columns {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        justify-content: flex-start;
+        align-items: flex-start;
+        gap: 24px;
+    }
+
+    .amscheckout > .three-columns > div {
+        width: calc((100% / 3) - 16px);
+        padding: 0;
+    }
+    @media all and (max-width: 767px) {
+        .amscheckout > .three-columns > div {
+            width: 100%;
+        }
+    }
+</style>

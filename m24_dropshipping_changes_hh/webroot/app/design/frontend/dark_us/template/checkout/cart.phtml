@@ -1,0 +1,2619 @@
+<?php
+/**
+ * Magento
+ *
+ * NOTICE OF LICENSE
+ *
+ * This source file is subject to the Academic Free License (AFL 3.0)
+ * that is bundled with this package in the file LICENSE_AFL.txt.
+ * It is also available through the world-wide-web at this URL:
+ * http://opensource.org/licenses/afl-3.0.php
+ * If you did not receive a copy of the license and are unable to
+ * obtain it through the world-wide-web, please send an email
+ * to license@magentocommerce.com so we can send you a copy immediately.
+ *
+ * DISCLAIMER
+ *
+ * Do not edit or add to this file if you wish to upgrade Magento to newer
+ * versions in the future. If you wish to customize Magento for your
+ * needs please refer to http://www.magentocommerce.com for more information.
+ *
+ * @category    design
+ * @package     base_default
+ * @copyright   Copyright (c) 2012 Magento Inc. (http://www.magentocommerce.com)
+ * @license     http://opensource.org/licenses/afl-3.0.php  Academic Free License (AFL 3.0)
+ */
+?>
+<?php
+echo $this->getChildHtml('check_availables');
+echo $this->getChildHtml('check_response_sound');
+$testArray = ['show_thresh_info' => 'sth',
+    'show_c2label' => 'sc2l',
+    'discount_amount_custom1' => 'dac1',
+    'cena_dodatkowa' => 'cd',
+    'additional_price_threshold' => 'apt',
+    'discount_amount_custom2' => 'da'];
+$c2Array = [];
+
+if (file_exists(Mage::getBaseDir('base') . "/c2perclient/" . Mage::getSingleton('customer/session')->getId()))
+    $c2Array = json_decode(file_get_contents(Mage::getBaseDir('base') . "/c2perclient/" . Mage::getSingleton('customer/session')->getId()), true);//$timehelper = Mage::helper('sap/products');
+
+$customer_logged = false;
+if (Mage::getSingleton('customer/session')->getCustomer()->getConfirmed()) {
+    $customer_logged = true;
+}
+/**
+ * Shopping cart template
+ *
+ * @see Mage_Checkout_Block_Cart
+ */
+$onlyPret = true;
+$quote = $this->getQuote();
+$excluded = array(377);
+
+// $subtotal = number_format($quote->getSubtotal(), 2);
+// $subtotalDiscount = number_format($quote->getSubtotalWithDiscount(), 2);
+$subtotal = floatval($quote->getSubtotal());
+$subtotalDiscount = floatval($quote->getSubtotalWithDiscount());
+$discountAmount = NULL;
+if ($subtotalDiscount && $subtotal > $subtotalDiscount) {
+    $discountAmount = $subtotal - $subtotalDiscount;
+}
+$waluta = Mage::app()->getLocale()->currency($quote->getQuoteCurrencyCode())->getSymbol();
+$waga = 0;
+$itemsWithDataZewArray = array();
+foreach ($quote->getAllVisibleItems() as $item) {
+    $prod = Mage::getModel('catalog/product')->load($item->getProduct()->getId());
+    $sku = $item->getProduct()->getSku();
+    if (substr($sku, -1) == "K") {
+        $tmpWeight = $prod->getWielkoscOpakowania();
+        if ($tmpWeight) {
+            $waga += $tmpWeight * $item->getQty();
+        }
+    } else {
+        $tmpWeight = $prod->getWaga();
+        if ($tmpWeight) {
+            $waga += $tmpWeight * $item->getQty();
+        }
+    }
+    if (strlen(trim($prod->getData('dostawa_zew'))) > 0) {
+        $trId = $prod->getSku() . '_' . $prod->getData('wielkosc_opakowania');
+        $newTrId = str_replace('.', '-', $trId);
+        $itemsWithDataZewArray[] = $newTrId;
+    }
+}
+$itemsWithDataZew = count($itemsWithDataZewArray);
+$itemsDataZewString = implode(',', $itemsWithDataZewArray);
+?>
+<div class="cart">
+    <div class="page-title title-buttons">
+        <h1><?php echo $this->__('Shopping Cart') ?></h1><a href="<?= $this->getUrl('samouczek/zamowienia') ?>" class="goto_guide_link">Przewodnik -
+            Składanie zamówień w Marcopol24.pl</a>
+        <?php if (!$this->hasError()): ?>
+            <ul class="checkout-types">
+                <?php foreach ($this->getMethods('top_methods') as $method): ?>
+                    <?php if ($methodHtml = $this->getMethodHtml($method)): ?>
+                        <li><?php echo str_replace("Potwierdzenie zamówienia", "Przejdź do kasy", $methodHtml); ?></li>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
+    <?php echo $this->getMessagesBlock()->toHtml() ?>
+    <div id="cms_above_cart">
+        <?php echo $this->getLayout()->createBlock('cms/block')->setBlockId('cart_page_block_above')->toHtml(); ?>
+    </div>
+    <style type="text/css">
+        div#cms_above_cart img {
+            width: 100%;
+            height: auto;
+        }
+    </style>
+    <?php echo $this->getChildHtml('form_before') ?>
+    <?php
+    $showAllDataCookie = $_COOKIE['show_all_cart_data'];
+    if ($showAllDataCookie === 'showemall') {
+        $showAllCheck = 'checked="checked"';
+    } else {
+        $showAllCheck = '';
+    }
+    if ($itemsWithDataZew > 0):
+        ?>
+        <ul class="messages dostawa_zew">
+            <li class="notice-msg">
+                <ul>
+                    <li>
+                        <span>Towary wyróżnione oraz oznaczone ikoną <span class="icon_dostawa"></span> zostaną wysłane powyżej 24h. Towar dostarczany z zewnętrznych magazynów.</span>
+                        <span class="dostawa_zew_show" style="display: none">
+                            <span class="trig" data-items="<?= $itemsDataZewString ?>" onclick="toggleShowDostawaZew(this)">Kliknij tutaj</span>
+                            <span class="info" style="display: inline-block">, aby wyróżnić te produkty.</span>
+                            <span class="info" style="display: none;">, aby usunąć wyróżnienie.</span>
+                        </span>
+                        <script type="text/javascript">
+                            jQuery(function ($) {
+                                let itemsDostawaZew = $('.dostawa_zew_show .trig').attr('data-items').split(',');
+                                $('.data-table.cart-table').addClass('with_dostawa_highlights');
+                                $('.dostawa_zew_show .trig').parent().find('span.info').toggle();
+                                $.each(itemsDostawaZew, (index, element_id) => {
+                                    $('#cart_form table.cart-table.data-table tbody').find('tr[data-id="' + element_id + '"]').toggleClass('dostawa_zew_highlight');
+                                    $('#cart_form table.cart-table.data-table tbody').find('tr#' + element_id + '_additional').toggleClass('dostawa_zew_highlight');
+                                });
+                            });
+                        </script>
+                    </li>
+                </ul>
+            </li>
+        </ul>
+    <?php endif; ?>
+    <?php if($customer_logged === true): ?>
+    <div id="cart_information_wrap">
+        <div class="cart_information_block ilosc">
+            <div class="text"><span class="title">Liczba pozycji</span></div>
+            <div class="value"><span><?= $quote->getItemsCount() ?></span></div>
+        </div>
+        <div class="cart_information_block wartosc">
+            <div class="text"><span class="title">Wartość netto</span></div>
+            <div class="value"><span><?= number_format($subtotalDiscount, 2, ",", ".") . ' ' . $waluta ?></span></div>
+        </div>
+        <div class="cart_information_block waga">
+            <div class="text"><span class="title">Waga netto pozycji</span></div>
+            <div class="value"><span><?= number_format($waga, 2, ",", ".") ?> kg</span></div>
+        </div>
+        <?php if ($discountAmount || $c2Array[$testArray['cena_dodatkowa']] == '1'): ?>
+            <div class="cart_information_block znizki">
+                <div class="text"><span class="title">Wartość zniżek</span></div>
+                <div class="value">
+                    <span><?= number_format(abs($discountAmount) + ($c2Array[$testArray['discount_amount_custom1']]), 2, ",", ".") . ' ' . $waluta ?></span>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php endif; ?>
+    <div class="show_all_data_wrap"><input type="checkbox" name="show_all_data" id="show_all_data" <?= $showAllCheck ?>><label for="show_all_data">Pokaż
+            wszystkie szczegóły produktów</label></div>
+    <form id="cart_form" action="<?php echo $this->getFormActionUrl() ?>" method="post">
+        <?php echo $this->getBlockHtml('formkey'); ?>
+        <fieldset>
+            <table id="shopping-cart-table" class="data-table cart-table">
+                <!-- <col width="1" /> -->
+                <col width="1"/>
+                <col/>
+                <?php if ($this->helper('wishlist')->isAllowInCart()) : ?>
+                    <col width="1"/>
+                <?php endif ?>
+                <?php if ($this->helper('tax')->displayCartPriceExclTax() || $this->helper('tax')->displayCartBothPrices()): ?>
+                    <col width="1"/>
+                <?php endif; ?>
+                <?php if ($this->helper('tax')->displayCartPriceInclTax() || $this->helper('tax')->displayCartBothPrices()): ?>
+                    <col width="1"/>
+                <?php endif; ?>
+                <col width="1"/>
+                <?php if ($this->helper('tax')->displayCartPriceExclTax() || $this->helper('tax')->displayCartBothPrices()): ?>
+                    <col width="1"/>
+                <?php endif; ?>
+                <?php if ($this->helper('tax')->displayCartPriceInclTax() || $this->helper('tax')->displayCartBothPrices()): ?>
+                    <col width="1"/>
+                <?php endif; ?>
+
+
+                <?php $mergedCells = ($this->helper('tax')->displayCartBothPrices() ? 2 : 1); ?>
+                <thead>
+                <tr>
+                    <!-- <th rowspan="<?php echo $mergedCells; ?>">&nbsp;</th> -->
+                    <th rowspan="<?php echo $mergedCells; ?>" class="a-center">&nbsp;</th>
+                    <th rowspan="<?php echo $mergedCells; ?>"><span class="nobr"><?php echo $this->__('Product Name') ?></span></th>
+                    <th>Nr Materiału</th>
+                    <th>Wielkość <br/>opakowania (JM)</th>
+
+                    <th>Cena JM</th>
+
+                    <th class="a-center" colspan="<?php echo $mergedCells; ?>"><span
+                                class="nobr"><?php echo $this->__('Cena <br/>opakowania') ?></span></th>
+                    <th rowspan="<?php echo $mergedCells; ?>" class="a-center"><?php echo $this->__('Liczba <br/>opakowań') ?></th>
+                    <th class="a-center" colspan="2"><?php echo $this->__('Subtotal') ?></th>
+                </tr>
+                <?php if ($this->helper('tax')->displayCartBothPrices()): ?>
+                    <tr>
+                        <th class="a-right"><?php echo $this->helper('tax')->getIncExcTaxLabel(false) ?></th>
+                        <th><?php echo $this->helper('tax')->getIncExcTaxLabel(true) ?></th>
+                        <th class="a-right"><?php echo $this->helper('tax')->getIncExcTaxLabel(false) ?></th>
+                        <th><?php echo $this->helper('tax')->getIncExcTaxLabel(true) ?></th>
+                    </tr>
+                <?php endif; ?>
+                </thead>
+                <tfoot>
+                <tr>
+                    <td colspan="50" class="a-right">
+                        <div>
+                            <button type="submit" name="update_cart_action" value="update_qty"
+                                    title="<?php echo Mage::helper('core')->quoteEscape($this->__('Aktualizuj koszyk')); ?>"
+                                    class="button inverted btn-update">
+                                <span><span><?php echo Mage::helper('core')->quoteEscape($this->__('Aktualizuj koszyk')); ?></span></span></button>
+                            <?php # clickup 1v6gnt5 ?>
+                            <span title="<?php echo Mage::helper('core')->quoteEscape($this->__('Clear Shopping Cart')); ?>"
+                                  class="button inverted btn-empty"
+                                  id="empty_cart_button-trig"><span><span><?php echo Mage::helper('core')->quoteEscape($this->__('Clear Shopping Cart')); ?></span></span></span>
+
+                            <div class="clear_cart-warn">
+                                <div class="cc_warn-title">Jesteś pewien?</div>
+                                <div class="cc_warn-info">Czyszcząc koszyk usuniesz wszystkie znajdujące się w nim produkty.
+                                    <div style="margin-top:10px;float:none;"></div>
+                                    Czy na pewno chcesz to zrobić?
+                                </div>
+                                <div class="cc_warn-btns">
+                                    <button type="submit" name="update_cart_action" value="empty_cart"
+                                            title="<?php echo Mage::helper('core')->quoteEscape($this->__('Clear Shopping Cart')); ?>"
+                                            class="button inverted btn-empty" id="empty_cart_button">
+                                        <span><span><?php echo Mage::helper('core')->quoteEscape($this->__('Tak')); ?></span></span></button>
+                                    <span class="cc_warn-cancel">Nie</span>
+                                </div>
+                            </div>
+                            <!-- <button type="submit" name="update_cart_action" value="empty_cart" title="<?php echo Mage::helper('core')->quoteEscape($this->__('Clear Shopping Cart')); ?>" class="button inverted btn-empty" id="empty_cart_button"><span><span><?php echo Mage::helper('core')->quoteEscape($this->__('Clear Shopping Cart')); ?></span></span></button> -->
+
+                        </div>
+                        <?php if ($this->getContinueShoppingUrl()): ?>
+                            <button type="button" title="<?php echo Mage::helper('core')->quoteEscape($this->__('Kontynuuj zakupy')) ?>"
+                                    class="button inverted btn-continue " onclick="setLocation('<?php echo $this->getContinueShoppingUrl() ?>')">
+                                <span><span><?php echo Mage::helper('core')->quoteEscape($this->__('Kontynuuj zakupy')) ?></span></span></button>
+                        <?php endif; ?>
+                        <span class="checked_update_qty fake_btn">Zaktualizuj zaznaczone</span>
+                        <span class="checked_delete_qty fake_btn">Usuń zaznaczone</span>
+                        <!--[if lt IE 8]>
+                        <input type="hidden" id="update_cart_action_container"/>
+                        <script type="text/javascript">
+                            //<![CDATA[
+                                Event.observe(window, 'load', function()
+                                {
+                                    // Internet Explorer (lt 8) does not support value attribute in button elements
+                                    $emptyCartButton = $('empty_cart_button');
+                                    $cartActionContainer = $('update_cart_action_container');
+                                    if ($emptyCartButton && $cartActionContainer) {
+                                        Event.observe($emptyCartButton, 'click', function()
+                                        {
+                                            $emptyCartButton.setAttribute('name', 'update_cart_action_temp');
+                                            $cartActionContainer.setAttribute('name', 'update_cart_action');
+                                            $cartActionContainer.setValue('empty_cart');
+                                        });
+                                    }
+
+                                });
+                            //]]>
+                            </script>
+                            <![endif]-->
+                    </td>
+                </tr>
+                </tfoot>
+                <tbody>
+                <?php
+                $onlyPret = true;
+                $allowDarmowaDostawa = true;
+                $prentDetected = false;
+                $pretCurrentPrice = 0;
+                $notPretPrice = 0;
+                foreach ($this->getItems() as $_item):
+                    echo $this->getItemHtml($_item);
+                    $prodID = $_item->getProduct()->getId();
+                    $czyPretProduct = Mage::getModel('catalog/product')->load($prodID);
+                    $czyPret = $czyPretProduct->getData('pret');
+                    if ((bool)$czyPret === true) {
+                        // $allowDarmowaDostawa = false;
+                        $prentDetected = true;
+                        $pretCurrentPrice += ($_item->getPrice() * $_item->getQty()) - $_item->getDiscountAmount();
+                    } else {
+                        $notPretPrice += ($_item->getPrice() * $_item->getQty()) - $_item->getDiscountAmount();
+                        $onlyPret = false;
+                    }
+                endforeach;
+
+                $foundDiscounts = false;
+                $rulesLabels = array();
+                $appliedRuleIdsRaw = Mage::getSingleton('checkout/session')->getQuote()->getAppliedRuleIds();
+                if (strlen($appliedRuleIdsRaw) > 0):
+                    $appliedRuleIds = explode(',', $appliedRuleIdsRaw);
+                    if (count($appliedRuleIds) > 0) {
+                        $foundDiscounts = true;
+                        $rules = Mage::getModel('salesrule/rule')->getCollection()->addFieldToFilter('rule_id', array('in' => $appliedRuleIds));
+                        foreach ($rules as $rule):
+                            // print("<pre>"); var_dump($rule->getData());print("</pre>");
+                            $rulesLabels[] = $rule->getStoreLabel();
+                        endforeach;
+                    }
+                endif;
+
+                # minimum logistyczne block
+                $cartTotals = $this->getQuote()->getTotals();
+                $subtotal = $cartTotals["subtotal"]->getValue();
+                $discountAmount = $this->getQuote()->getShippingAddress()->getDiscountAmount();
+                $storeId = Mage::app()->getStore()->getStoreId();
+                $minAmount = Mage::getStoreConfig('sales/minimum_order/amount', $storeId);
+                $minAmountValue = floatval($minAmount);
+                $cartValue = $subtotal;
+                if (boolval($discountAmount) !== false):
+                    $cartValue = $subtotal + $discountAmount;
+                endif;
+
+                $output = $cartValue;
+                $logisticMinimumMessage = '';
+                $logisticMinMsg = '(';
+                $displayLogisticMinimum = false;
+                if ($cartValue < $minAmountValue) {
+                    $displayLogisticMinimum = true;
+                    $logisticMinimumMessage .= "Do zrealizowania zamówienia brakuje Ci ";
+                    $amountMissing = $minAmountValue - $cartValue;
+                    $logisticMinimumMessage .= '<strong style="font-size:15px;color:#ff0000;">' . Mage::helper('core')->currency($amountMissing, true, false) . ' netto</strong>';
+                    $logisticMinMsg .= 'brakuje ' . Mage::helper('core')->currency($amountMissing, true, false) . ' netto)';
+                } else {
+                    $displayLogisticMinimum = false;
+                    $logisticMinMsg .= 'spełniono warunki)';
+                }
+
+                ?>
+                </tbody>
+            </table>
+            <script type="text/javascript">decorateTable('shopping-cart-table')</script>
+        </fieldset>
+    </form>
+
+    <script type="text/javascript">
+        jQuery(function ($) {
+            $('.checked_delete_qty').on('click', function (evt) {
+                let form = $('#cart_form');
+                let formData = new Array();
+                let checkboxes = $('.cart_item_update_check');
+                let items_checked = 0;
+
+                checkboxes.each((ch_index, checkbox) => {
+                    let selectorQTY = $(checkbox).attr('data-item');
+                    let item_pre_id = selectorQTY.replace('cart[', '');
+                    let item_id = item_pre_id.replace('][qty]', '');
+                    let is_above = $(checkbox).attr('data-above');
+                    let is_above_qty = $(checkbox).attr('data-stock_above_qty');
+                    let out_of_stock = $(checkbox).attr('data-outofstock');
+                    let quantity = form.find('input[name="' + selectorQTY + '"]').val();
+
+                    if ($(checkbox).is(':checked')) {
+                        formData.push(item_id);
+                        items_checked++;
+                    }
+                });
+                if (items_checked > 0) {
+                    form.find('fieldset').addClass('spinner_show');
+                    let remove_products = {'product_ids': formData};
+                    jQuery.ajax({
+                        url: "<?php echo $this->getUrl('productsubstitutes/cart/removespecific'); ?>",
+                        method: 'POST',
+                        data: remove_products
+                    }).done(function (data) {
+                        console.log('done', data);
+                        location.reload();
+                    }).fail(function (jqXHR, textStatus) {
+                        console.log('fail', jqXHR, textStatus);
+                        location.reload();
+                    });
+                }
+            });
+            $('button.button.inverted.btn-update').on('click', function (evt) {
+                evt.preventDefault();
+                let form = $('#cart_form');
+                let formData = new Array();
+                let existingFormData = form.serializeArray();
+                let checkboxes = $('.cart_item_update_check');
+                let remove_products_arr = new Array();
+                let found_out_of_stock = 0;
+
+                formKey = form.find('input[name="form_key"]').val();
+                formData.push({'name': 'form_key', 'value': formKey});
+                form.find('fieldset').addClass('spinner_show');
+
+                checkboxes.each((ch_index, checkbox) => {
+                    let selectorQTY = $(checkbox).attr('data-item');
+                    let is_above = $(checkbox).attr('data-above');
+                    let is_above_qty = $(checkbox).attr('data-stock_above_qty');
+                    let out_of_stock = $(checkbox).attr('data-outofstock');
+                    let quantity = form.find('input[name="' + selectorQTY + '"]').val();
+                    formData.push({'name': selectorQTY, 'value': quantity});
+                });
+                formData.push({'update_cart_action': 'update_qty'});
+                jQuery.ajax({
+                    url: form.attr('action'),
+                    method: form.attr('method'),
+                    data: formData
+                }).done(function (data) {
+                    console.log('data qty updated');
+                    location.reload();
+                }).fail(function (jqXHR, textStatus) {
+                    console.log('data qty fail');
+                    console.log(jqXHR, textStatus);
+                    location.reload();
+                });
+            });
+            $('.checked_update_qty').on('click', function (evt) {
+                let form = $('#cart_form');
+                let formData = new Array();
+                let existingFormData = form.serializeArray();
+                let checkboxes = $('.cart_item_update_check');
+                let remove_products_arr = new Array();
+                let found_out_of_stock = 0;
+
+                formKey = form.find('input[name="form_key"]').val();
+                formData.push({'name': 'form_key', 'value': formKey});
+                form.find('fieldset').addClass('spinner_show');
+
+                checkboxes.each((ch_index, checkbox) => {
+                    let selectorQTY = $(checkbox).attr('data-item');
+                    let is_above = $(checkbox).attr('data-above');
+                    let is_above_qty = $(checkbox).attr('data-stock_above_qty');
+                    let out_of_stock = $(checkbox).attr('data-outofstock');
+                    let quantity = form.find('input[name="' + selectorQTY + '"]').val();
+                    if ($(checkbox).is(':checked')) {
+                        if (is_above > 0) {
+                            formData.push({'name': selectorQTY, 'value': is_above_qty});
+                        } else {
+                            formData.push({'name': selectorQTY, 'value': quantity});
+                        }
+                        if (out_of_stock > 0) {
+                            let item_pre_id = selectorQTY.replace('cart[', '');
+                            let item_id = item_pre_id.replace('][qty]', '');
+                            remove_products_arr.push(item_id);
+                            found_out_of_stock++;
+                        }
+                    }
+                });
+                if (found_out_of_stock > 0) {
+                    let remove_products = {'product_ids': remove_products_arr};
+                    jQuery.ajax({
+                        url: "<?php echo $this->getUrl('productsubstitutes/cart/removespecific'); ?>",
+                        method: 'POST',
+                        data: remove_products
+                    }).done(function (data) {
+                        console.log('done r', data);
+                    }).fail(function (jqXHR, textStatus) {
+                        console.log('fail r', jqXHR, textStatus);
+                    });
+                }
+                formData.push({'update_cart_action': 'update_qty'});
+                jQuery.ajax({
+                    url: form.attr('action'),
+                    method: form.attr('method'),
+                    data: formData
+                }).done(function (data) {
+                    console.log('data qty updated');
+                    location.reload();
+                }).fail(function (jqXHR, textStatus) {
+                    console.log('data qty fail');
+                    console.log(jqXHR, textStatus);
+                    location.reload();
+                });
+            });
+        });
+    </script>
+    <style type="text/css">
+        fieldset.spinner_show:before {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            content: '';
+            background: rgb(0 0 0 / 28%);
+            z-index: 9;
+        }
+
+        fieldset.spinner_show {
+            position: relative;
+        }
+
+        @keyframes spinner {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        fieldset.spinner_show:after {
+            content: '';
+            box-sizing: border-box;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            margin-top: -10px;
+            margin-left: -10px;
+            border-radius: 50%;
+            border: 10px solid #ccc;
+            transform: translate(-50%, -50%);
+            border-top-color: #003543;
+            animation: spinner 1s linear infinite;
+            z-index: 10;
+        }
+    </style>
+    <?php
+    $grid_cols = '';
+    if (($allowDarmowaDostawa === false) && (($foundDiscounts === false) || (boolval($discountAmount) !== true))):
+        $blockClass = 'grid_18';
+        $grid_cols .= 'my-custom-grid_2';
+        $grid_cols .= ' prent_nocoupon';
+    elseif (($allowDarmowaDostawa === false) && (($foundDiscounts === true) || (boolval($discountAmount) === true))):
+        $blockClass = 'grid_18';
+        $grid_cols .= 'my-custom-grid_2';
+        $grid_cols .= ' prent_coupon';
+    elseif (($allowDarmowaDostawa === false) || (($foundDiscounts === false) || (boolval($discountAmount) !== true))):
+        #2 cols
+        $blockClass = 'grid_9';
+        $grid_cols .= 'my-custom-grid_3';
+    else:
+        #3 cols
+        $blockClass = 'grid_6';
+        $grid_cols .= 'my-custom-grid_3';
+    endif;
+
+    if ($allowDarmowaDostawa === false) {
+        $grid_cols .= ' hide_shipping';
+    } else {
+        $grid_cols .= ' show_shipping';
+    }
+    if (($foundDiscounts === false) || (boolval($discountAmount) !== true)) {
+        $grid_cols .= ' show_promos';
+    } else {
+        $grid_cols .= ' show_promos';
+    }
+    ?>
+    <div class="cart-collaterals">
+        <?php echo $this->getChildHtml('crosssell') ?>
+    </div>
+    <div class="row cart-collaterals custom-cart-summary <?= $grid_cols ?>">
+        <div class="grid_18 top-line">
+
+            <style type="text/css">
+                a.goto_guide_link:before {
+                    position: absolute;
+                    top: 50%;
+                    left: 0;
+                    content: '';
+                    background: url("data:image/svg+xml,%3C%3Fxml version='1.0' encoding='utf-8'%3F%3E%3C!-- Generator: Adobe Illustrator 27.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0) --%3E%3Csvg version='1.1' id='Warstwa_1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px' viewBox='0 0 64 64' style='enable-background:new 0 0 64 64;' xml:space='preserve'%3E%3Cstyle type='text/css'%3E .st0%7Bfill:%23262626;stroke:%23020203;%7D%0A%3C/style%3E%3Cg id='samouczek' transform='translate(-1270.029 -13.354)'%3E%3Cg id='Kompozycja_172' transform='translate(1300.286 35.537)'%3E%3Cg id='Group_12' transform='translate(-18.743 -4.637)'%3E%3Cg id='Group_11'%3E%3Cpath id='Path_13' class='st0' d='M9.9,26.1c-0.1,0-0.2,0-0.2,0c-1-0.3-1.9-0.9-2.6-1.6C7,24.4,7,24.3,7,24.2v-4.9 c0-0.3,0.3-0.5,0.6-0.5c0.3,0,0.6,0.2,0.6,0.5c0,0,0,0,0,0V24c0.6,0.5,1.2,0.8,1.9,1.1c0.3,0.1,0.4,0.5,0.3,0.7 C10.3,26,10.1,26.1,9.9,26.1L9.9,26.1z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_14' transform='translate(-28.175 -16.335)'%3E%3Cg id='Group_13'%3E%3Cpath id='Path_14' class='st0' d='M1.9,27.9c-0.3,0-0.6-0.2-0.6-0.5l0,0V13.6c0-0.3,0.3-0.5,0.6-0.5c0.3,0,0.6,0.2,0.6,0.5v13.8 C2.5,27.7,2.2,27.9,1.9,27.9C1.9,27.9,1.9,27.9,1.9,27.9z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_16' transform='translate(-29.758 -7.071)'%3E%3Cg id='Group_15'%3E%3Cpath id='Path_15' class='st0' d='M3.5,23.4c-1.7,0-3.1-1.3-3.1-2.9c0-1.6,1.4-2.9,3.1-2.9c1.7,0,3.1,1.3,3.1,2.9 C6.6,22.1,5.2,23.4,3.5,23.4z M3.5,18.6c-1.1,0-1.9,0.8-1.9,1.8c0,1,0.9,1.8,1.9,1.8s1.9-0.8,1.9-1.8l0,0 C5.4,19.5,4.6,18.6,3.5,18.6z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_18' transform='translate(-6.568 -4.228)'%3E%3Cg id='Group_17'%3E%3Cpath id='Path_16' class='st0' d='M27.9,35.2c-0.2,0-0.3-0.1-0.4-0.2l-4.6-4.3l-2,3.4c-0.2,0.3-0.5,0.4-0.8,0.2 c-0.1-0.1-0.2-0.2-0.3-0.3l-5.5-14.4c-0.1-0.3,0-0.6,0.4-0.7c0.1,0,0.3,0,0.4,0l15.4,5.1c0.3,0.1,0.5,0.4,0.4,0.7 c0,0.1-0.1,0.2-0.3,0.3l-3.8,1.9l4.7,4.3c0.2,0.2,0.2,0.6,0,0.8c0,0,0,0,0,0l-3.2,3C28.2,35.1,28,35.2,27.9,35.2z M22.7,29.2 c0.2,0,0.3,0.1,0.4,0.2l4.8,4.4l2.4-2.2l-4.8-4.5c-0.2-0.2-0.2-0.6,0-0.8c0,0,0.1-0.1,0.1-0.1l3.3-1.6l-13-4.3l4.6,12.1l1.7-3 C22.3,29.3,22.5,29.2,22.7,29.2L22.7,29.2z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_20' transform='translate(-0.377 -13.29)'%3E%3Cg id='Group_19'%3E%3Cpath id='Path_17' class='st0' d='M18.6,28.6c-0.3,0-0.6-0.2-0.6-0.5c0,0,0,0,0,0V15c0-0.3,0.3-0.5,0.6-0.5 c0.3,0,0.6,0.2,0.6,0.5v13C19.2,28.3,18.9,28.6,18.6,28.6L18.6,28.6z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_22' transform='translate(-20.901 -13.56)'%3E%3Cg id='Group_21'%3E%3Cpath id='Path_18' class='st0' d='M22.7,40.3c-9.7,0-17-2.9-17-6.8V14.9c0-0.3,0.3-0.5,0.6-0.5c0.3,0,0.6,0.2,0.6,0.5v18.6 c0,2.8,5.9,5.7,15.8,5.7c2.1,0,4.2-0.2,6.3-0.6c0.3-0.1,0.6,0.1,0.7,0.4c0.1,0.3-0.1,0.6-0.5,0.6l0,0 C27.1,40.1,24.9,40.3,22.7,40.3z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_24' transform='translate(-28.175 -21.682)'%3E%3Cg id='Group_23'%3E%3Cpath id='Path_19' class='st0' d='M30,29.2c-0.1,0-0.1,0-0.2,0L7.2,21.5c-0.3-0.1-0.5-0.4-0.3-0.7c0.1-0.3,0.4-0.4,0.7-0.3 L30,28.1L58.5,19L30,11.5L2.1,19.4c-0.3,0.1-0.6-0.1-0.7-0.4c-0.1-0.3,0.1-0.5,0.4-0.6l28.1-8c0.1,0,0.2,0,0.3,0l30.5,8 c0.3,0.1,0.5,0.4,0.4,0.7c-0.1,0.2-0.2,0.3-0.4,0.4l-30.5,9.7C30.1,29.2,30,29.2,30,29.2z'/%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/svg%3E%0A");
+                    width: 45px;
+                    height: 33px;
+                    background-size: 45px;
+                    transform: translateY(-50%);
+                    background-position: 0 -5px;
+                }
+
+                a.goto_guide_link:hover:before {
+                    position: absolute;
+                    top: 50%;
+                    left: 0;
+                    content: '';
+                    background: url("data:image/svg+xml,%3C%3Fxml version='1.0' encoding='utf-8'%3F%3E%3C!-- Generator: Adobe Illustrator 27.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0) --%3E%3Csvg version='1.1' id='Warstwa_1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px' viewBox='0 0 64 64' style='enable-background:new 0 0 64 64;' xml:space='preserve'%3E%3Cstyle type='text/css'%3E .st0%7Bfill:%2300A9BB;stroke:%2300A9BB;%7D%0A%3C/style%3E%3Cg id='samouczek' transform='translate(-1270.029 -13.354)'%3E%3Cg id='Kompozycja_172' transform='translate(1300.286 35.537)'%3E%3Cg id='Group_12' transform='translate(-18.743 -4.637)'%3E%3Cg id='Group_11'%3E%3Cpath id='Path_13' class='st0' d='M9.9,26.1c-0.1,0-0.2,0-0.2,0c-1-0.3-1.9-0.9-2.6-1.6C7,24.4,7,24.3,7,24.2v-4.9 c0-0.3,0.3-0.5,0.6-0.5c0.3,0,0.6,0.2,0.6,0.5c0,0,0,0,0,0V24c0.6,0.5,1.2,0.8,1.9,1.1c0.3,0.1,0.4,0.5,0.3,0.7 C10.3,26,10.1,26.1,9.9,26.1L9.9,26.1z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_14' transform='translate(-28.175 -16.335)'%3E%3Cg id='Group_13'%3E%3Cpath id='Path_14' class='st0' d='M1.9,27.9c-0.3,0-0.6-0.2-0.6-0.5l0,0V13.6c0-0.3,0.3-0.5,0.6-0.5c0.3,0,0.6,0.2,0.6,0.5v13.8 C2.5,27.7,2.2,27.9,1.9,27.9C1.9,27.9,1.9,27.9,1.9,27.9z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_16' transform='translate(-29.758 -7.071)'%3E%3Cg id='Group_15'%3E%3Cpath id='Path_15' class='st0' d='M3.5,23.4c-1.7,0-3.1-1.3-3.1-2.9c0-1.6,1.4-2.9,3.1-2.9c1.7,0,3.1,1.3,3.1,2.9 C6.6,22.1,5.2,23.4,3.5,23.4z M3.5,18.6c-1.1,0-1.9,0.8-1.9,1.8c0,1,0.9,1.8,1.9,1.8s1.9-0.8,1.9-1.8l0,0 C5.4,19.5,4.6,18.6,3.5,18.6z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_18' transform='translate(-6.568 -4.228)'%3E%3Cg id='Group_17'%3E%3Cpath id='Path_16' class='st0' d='M27.9,35.2c-0.2,0-0.3-0.1-0.4-0.2l-4.6-4.3l-2,3.4c-0.2,0.3-0.5,0.4-0.8,0.2 c-0.1-0.1-0.2-0.2-0.3-0.3l-5.5-14.4c-0.1-0.3,0-0.6,0.4-0.7c0.1,0,0.3,0,0.4,0l15.4,5.1c0.3,0.1,0.5,0.4,0.4,0.7 c0,0.1-0.1,0.2-0.3,0.3l-3.8,1.9l4.7,4.3c0.2,0.2,0.2,0.6,0,0.8c0,0,0,0,0,0l-3.2,3C28.2,35.1,28,35.2,27.9,35.2z M22.7,29.2 c0.2,0,0.3,0.1,0.4,0.2l4.8,4.4l2.4-2.2l-4.8-4.5c-0.2-0.2-0.2-0.6,0-0.8c0,0,0.1-0.1,0.1-0.1l3.3-1.6l-13-4.3l4.6,12.1l1.7-3 C22.3,29.3,22.5,29.2,22.7,29.2L22.7,29.2z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_20' transform='translate(-0.377 -13.29)'%3E%3Cg id='Group_19'%3E%3Cpath id='Path_17' class='st0' d='M18.6,28.6c-0.3,0-0.6-0.2-0.6-0.5c0,0,0,0,0,0V15c0-0.3,0.3-0.5,0.6-0.5 c0.3,0,0.6,0.2,0.6,0.5v13C19.2,28.3,18.9,28.6,18.6,28.6L18.6,28.6z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_22' transform='translate(-20.901 -13.56)'%3E%3Cg id='Group_21'%3E%3Cpath id='Path_18' class='st0' d='M22.7,40.3c-9.7,0-17-2.9-17-6.8V14.9c0-0.3,0.3-0.5,0.6-0.5c0.3,0,0.6,0.2,0.6,0.5v18.6 c0,2.8,5.9,5.7,15.8,5.7c2.1,0,4.2-0.2,6.3-0.6c0.3-0.1,0.6,0.1,0.7,0.4c0.1,0.3-0.1,0.6-0.5,0.6l0,0 C27.1,40.1,24.9,40.3,22.7,40.3z'/%3E%3C/g%3E%3C/g%3E%3Cg id='Group_24' transform='translate(-28.175 -21.682)'%3E%3Cg id='Group_23'%3E%3Cpath id='Path_19' class='st0' d='M30,29.2c-0.1,0-0.1,0-0.2,0L7.2,21.5c-0.3-0.1-0.5-0.4-0.3-0.7c0.1-0.3,0.4-0.4,0.7-0.3 L30,28.1L58.5,19L30,11.5L2.1,19.4c-0.3,0.1-0.6-0.1-0.7-0.4c-0.1-0.3,0.1-0.5,0.4-0.6l28.1-8c0.1,0,0.2,0,0.3,0l30.5,8 c0.3,0.1,0.5,0.4,0.4,0.7c-0.1,0.2-0.2,0.3-0.4,0.4l-30.5,9.7C30.1,29.2,30,29.2,30,29.2z'/%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/g%3E%3C/svg%3E%0A");
+                    width: 45px;
+                    height: 33px;
+                    background-size: 45px;
+                    transform: translateY(-50%);
+                    background-position: 0 -5px;
+                }
+
+                a.goto_guide_link:hover {
+                    color: #00A9BB;
+                }
+
+                a.goto_guide_link {
+                    font-weight: 700;
+                    font-size: 12px;
+                    font-family: "Montserrat", Arial, sans-serif;
+                    box-sizing: border-box;
+                    padding-left: 50px;
+                    position: relative;
+                    margin: 0 0 30px;
+                    display: inline-block;
+                }
+
+                .page-title .goto_guide_link {
+                    float: left;
+                    margin: 13px 0 0 50px !important;
+                }
+
+                @media all and (max-width: 767px) {
+                    .page-title .goto_guide_link {
+                        margin: 13px 0 20px 50px !important;
+                    }
+                }
+            </style>
+        </div>
+
+        <div class="ccs-item ccs-item_promos <?= $blockClass ?>">
+            <?php if (($foundDiscounts === true) || (boolval($discountAmount) !== false) || $c2Array[$testArray['cena_dodatkowa']] == '1'): ?>
+                <?php if($customer_logged === true): ?>
+                <div class="block block_coupon 1"
+                     style="box-shadow: 0px 0px 6px rgb(1 60 77 / 40%);border-top-color: #013c4d;background: #00a9bb;color: #fff;">
+                    <?php if ($foundDiscounts === true || $c2Array[$testArray['cena_dodatkowa']] == '1'): ?>
+                        <div class="discount">
+                            <h2>Zastosowane zniżki / promocje</h2>
+                            <div>
+                                <ul style="margin-left: 7px;" class="promos_items">
+                                    <?php
+                                    foreach ($rulesLabels as $rulelabel) {
+                                        echo "<li style='display: list-item;list-style: none;margin: 5px 0;font-size: 15px;color: #000;font-weight: 600;'>" . $rulelabel . "</li>";
+                                    }
+                                    // if($c2Array[$testArray['cena_dodatkowa']]=='1'){
+                                    //     echo "<li style='display: list-item;list-style: none;margin: 5px 0;font-size: 15px;color: #000;font-weight: 600;'>Przekroczenie progu 2000 zł</li>";
+                                    // }
+                                    ?>
+
+
+                                    <ul>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (boolval($discountAmount) !== false || $c2Array[$testArray['cena_dodatkowa']] == '1'): ?>
+                        <div class="discount" style="margin-top:10px;border-top:1px solid #ddd;">
+                            <table>
+                                <tbody>
+                                <tr>
+                                    <th style="background: #00a9bb !important;">Całkowita wartość zniżek:</th>
+                                    <td style="font-weight:600;background: #00a9bb !important;"><?php echo $formattedDiscountAmount = Mage::helper('core')->currency(abs($discountAmount) + abs($c2Array[$testArray['discount_amount_custom1']]), true, false); ?></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
+            <?php endif; ?>
+            <div class="block block_coupon 2">
+                <div class="discount"><?php echo $this->getChildHtml('coupon') ?></div>
+            </div>
+
+        </div>
+
+        <div class="ccs-item ccs-item_shipping grid_6">
+            <?php #if($displayLogisticMinimum === true): ?>
+            <?php if($customer_logged === true): ?>
+            <div class="block block_coupon 3" style="margin-bottom: 19px;">
+                <div class="discount special_block">
+                    <div class="hidden-info minlogistic">
+                        <span class="hidden-info_question">?</span>
+                        <span class="hidden-info_answer">Aby móc złożyć zamówienie, w koszyku łączna wartość produktów (już z uwzględnieniem wszelkich rabatów i zniżek) musi wynosić minimum 150 zł netto (bez kosztów dostawy).</span>
+                    </div>
+                    <h2>Warunki dostawy</h2>
+
+                    <?php $active = 'active'; ?>
+                    <ul class="memolist" style="margin-top: 10px;">
+
+                        <?php $status = "bad";
+                        $totals = Mage::getSingleton('checkout/cart')->getQuote()->getTotals();
+                        $subtotal = Mage::getSingleton('checkout/cart')->getQuote()->getSubtotalWithDiscount(); //$totals["subtotal"]->getValue();;
+                        $max = 150;
+                        $dostawaMsg = "";
+                        if ($subtotal >= $max):
+                            $status = "ok";
+                        endif;
+                        ?>
+
+                        <p class="logistic_min <?= $active ?> <?= $status ?>"><span class="<?= $status ?>"></span>Minimum
+                            zakupowe <?= $logisticMinMsg ?></p>
+                        <?php $status = "bad";
+                        $totals = Mage::getSingleton('checkout/cart')->getQuote()->getTotals();
+                        $subtotal = $notPretPrice; //$totals["subtotal"]->getValue();;
+                        $max = 700;
+                        $dostawaMsg = "(spełniono warunki)";
+                        if ($subtotal < $max && $subtotal > 0):
+                            $brakuje = $max - $notPretPrice;
+                            $missingWithCurrency = Mage::helper('core')->currency($brakuje, true, false);
+                            $dostawaMsg = "(brakuje $missingWithCurrency)";
+                        elseif ($subtotal == 0):
+                            $status = "inactive";
+                        else:
+                            $status = "ok";
+                        endif;
+                        ?>
+                        <?php
+
+                        if (date_default_timezone_get() !== 'Europe/Warsaw') {
+                            date_default_timezone_set('Europe/Warsaw');
+                        }
+                        $currTimezone = date_default_timezone_get();
+                        $currDate = date('Y-m-d');
+                        $pretFreeShipping = Mage::getStoreConfig('simple24/simple24/simple24_attributes');
+                        $diffFreePret = $pretFreeShipping - $pretCurrentPrice;
+                        if ($status !== 'inactive'):
+                            if ($currDate === '2022-02-04'):
+                                echo '<p class="norm_dostawa a1 ' . $active . ' ok"><span class="ok"></span><span class="msg">Darmowa dostawa (spełniono warunki)</span></p>';
+                            else:
+                                echo '<p class="norm_dostawa a2 ' . $active . ' ' . $status . '"><span class="' . $status . '"></span><span class="msg">Darmowa dostawa ' . $dostawaMsg . '</span></p>';
+                            endif;
+                        endif;
+                        $active = 'inactive';
+                        $status = 'bad';
+                        $discountP = Mage::getStoreConfig('simple24/simple24/obnizenie_cen');
+                        $applied = [];
+                        if (is_array($quote->getAppliedRuleIds()))
+                            $applied = $quote->getAppliedRuleIds();
+                        else
+                            $applied[0] = $quote->getAppliedRuleIds();
+
+                        if (in_array(377, $applied) == false):
+                            if ($c2Array[$testArray['cena_dodatkowa']] == '1') {
+                                $active = 'active';
+                                $status = 'ok';
+                            }
+                            // echo '<p class="norm_dostawa a2 '.$active.' '.$status .'"><span class="'.$status.'"></span><span class="msg">Rabat za przekroczenie progu '.$discountP .' zł</span></p>';
+                        endif;
+                        ?>
+
+
+                        <?php
+
+                        $status = "inactive";
+                        if ($prentDetected):
+                            $status = "bad";
+                        endif;
+
+                        if ($diffFreePret <= 0)
+                            $status = "ok";
+
+                        $dostawaMsg = "(spełniono warunki)";
+                        if ($diffFreePret > 0 && $pretCurrentPrice > 0) {
+                            $missingWithCurrency = Mage::helper('core')->currency($diffFreePret, true, false);
+                            $dostawaMsg = "<br>(brakuje $missingWithCurrency)";
+                        }
+                        ?>
+                        <?php if ($status !== 'inactive'): ?>
+                            <?php if ($currDate === '2022-02-04'): ?>
+                                <p class="pret_dostawa <?= $active ?> ok"><span class="ok"></span><span class="msg">Darmowa dostawa prętów 2m (spełniono warunki)</span>
+                                </p>
+                            <?php else: ?>
+                                <p class="pret_dostawa <?= $active ?> <?= $status ?>"><span class="<?= $status ?>"></span><span class="msg">Darmowa dostawa prętów 2m <?= $dostawaMsg ?></span>
+                                </p>
+                            <?php endif; ?>
+                        <?php endif; ?>
+
+                    </ul>
+                    <style>
+                        .block_title_special h2 {
+                            font-family: "Lato", Arial, sans-serif;
+                            letter-spacing: -1px;
+                            text-transform: none !important;
+                            padding: 19px 0 7px;
+                            font-weight: 800;
+                            font-size: 19px;
+                            line-height: .8;
+                            display: inline-block;
+                        }
+
+                        .custom-cart-summary > .ccs-item_shipping .discount .block_title_special .hidden-info {
+                            position: relative;
+                            top: -4px;
+                            left: 0;
+                            display: inline-block;
+                            margin-left: 10px;
+                        }
+
+                        .block.block_coupon .discount.special_block h2:before {
+                            position: absolute;
+                            top: 5px;
+                            right: 5px;
+                            content: '';
+                            background: url('data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBzdGFuZGFsb25lPSJubyI/PiA8IURPQ1RZUEUgc3ZnIFBVQkxJQyAiLS8vVzNDLy9EVEQgU1ZHIDIwMDEwOTA0Ly9FTiIgICJodHRwOi8vd3d3LnczLm9yZy9UUi8yMDAxL1JFQy1TVkctMjAwMTA5MDQvRFREL3N2ZzEwLmR0ZCI+IDxzdmcgdmVyc2lvbj0iMS4wIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciICB3aWR0aD0iNTEyLjAwMDAwMHB0IiBoZWlnaHQ9IjUxMi4wMDAwMDBwdCIgdmlld0JveD0iMCAwIDUxMi4wMDAwMDAgNTEyLjAwMDAwMCIgIHByZXNlcnZlQXNwZWN0UmF0aW89InhNaWRZTWlkIG1lZXQiPiAgPGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMC4wMDAwMDAsNTEyLjAwMDAwMCkgc2NhbGUoMC4xMDAwMDAsLTAuMTAwMDAwKSIgZmlsbD0iIzAwMDAwMCIgc3Ryb2tlPSJub25lIj4gPHBhdGggZD0iTTU1OCA0MDU5IGMtNjggLTM1IC03OCAtNzEgLTc4IC0yNzkgbDAgLTE4MCAtMTA1IDAgYy04NiAwIC0xMTMgLTQgLTE0NSAtMjAgLTQ1IC0yMyAtODAgLTgwIC04MCAtMTMwIDAgLTUwIDM1IC0xMDcgODAgLTEzMCAzNyAtMTkgNTggLTIwIDQ0OSAtMjAgMzQ1IDAgNDE3IC0yIDQ0OSAtMTUgOTYgLTM5IDEwMSAtMTgwIDkgLTI0OSAtMjggLTIxIC00MCAtMjEgLTUzMCAtMjYgLTQ1NiAtNSAtNTA1IC03IC01MzQgLTIzIC0zOCAtMjAgLTczIC04MiAtNzMgLTEyNyAwIC01MCAzNSAtMTA3IDgwIC0xMzAgMzggLTE5IDU4IC0yMCA3NDcgLTIwIGw3MDggMCAzOSAtMjMgYzEwMCAtNTcgMTAwIC0xOTcgMCAtMjU0IGwtMzkgLTIzIC03MDggMCBjLTY4OSAwIC03MDkgLTEgLTc0NyAtMjAgLTQ1IC0yMyAtODAgLTgwIC04MCAtMTMwIDAgLTUwIDM1IC0xMDcgODAgLTEzMCAzNSAtMTggNTkgLTIwIDIyMCAtMjAgbDE4MCAwIDAgLTI0MCBjMCAtMzUyIDAgLTM1MiAyNzggLTM2MCBsMTczIC01IDIyIC02NSBjMzAgLTkwIDY5IC0xNTIgMTM3IC0yMjAgMjI0IC0yMjQgNTg2IC0yMjQgODEwIDAgNjggNjggMTA3IDEzMCAxMzcgMjIwIGwyMiA2NSA3NjEgMCA3NjEgMCAyMiAtNjUgYzMwIC05MCA2OSAtMTUyIDEzNyAtMjIwIDIyNCAtMjI0IDU4NiAtMjI0IDgxMCAwIDY4IDY4IDEwNyAxMzAgMTM3IDIyMCBsMjIgNjUgMTUzIDUgYzE3NiA2IDIwNSAxNiAyMzggODAgMTkgMzggMjAgNTggMjAgNTM4IDAgNTQyIC0yIDU2MiAtNTcgNjY1IC0zNiA2NCAtMTE5IDEzOSAtMTk3IDE3NiAtMTI1IDYwIC0xMzMgNjEgLTc5NSA2MSBsLTYwMyAwIC00MCAyMiBjLTc5IDQ1IC03OCAzNiAtNzggNTYzIGwwIDQ2NSAtMTM3NyAwIGMtMTM1MiAtMSAtMTM3OSAtMSAtMTQxNSAtMjF6IG0xMDUyIC0yMTg0IGM5MiAtNDYgMTYwIC0xNTMgMTYwIC0yNTAgMCAtOTcgLTY4IC0yMDQgLTE1OSAtMjUwIC0xMjEgLTYxIC0yOTYgMSAtMzY0IDEyOSAtMzEgNTggLTMxIDE4NCAwIDI0MiAzMCA1NiAxMDYgMTIxIDE2MiAxMzkgNTcgMTggMTU1IDE0IDIwMSAtMTB6IG0yNjUwIDAgYzkyIC00NiAxNjAgLTE1MyAxNjAgLTI1MCAwIC05NyAtNjggLTIwNCAtMTU5IC0yNTAgLTEyMSAtNjEgLTI5NiAxIC0zNjQgMTI5IC0zMSA1OCAtMzEgMTg0IDAgMjQyIDMwIDU2IDEwNiAxMjEgMTYyIDEzOSA1NyAxOCAxNTUgMTQgMjAxIC0xMHoiLz4gPHBhdGggZD0iTTM2NTAgMzY5MCBsMCAtMzYwIDQxMCAwIGMyMjYgMCA0MTAgMyA0MTAgNiAwIDEzIC0xMjUgMjEwIC0xODQgMjg5IC0xMTggMTU5IC0yMzMgMjYwIC0zODIgMzM0IC02MyAzMSAtMjI3IDkxIC0yNTAgOTEgLTIgMCAtNCAtMTYyIC00IC0zNjB6Ii8+IDwvZz4gPC9zdmc+IA==');
+                            width: 40px;
+                            height: 40px;
+                            background-size: 40px;
+                        }
+
+                        .block.block_coupon .discount.special_block h2 {
+                            display: inline-block;
+                            position: relative;
+                            padding-right: 60px;
+                        }
+
+                        .memolist span.ok:before {
+                            content: "\2713";
+                            margin-right: 5px;
+                            color: green;
+                            font-weight: 900;
+                        }
+
+                        .memolist span.bad:before {
+                            content: "\2717";
+                            margin-right: 5px;
+                            color: red;
+                            font-weight: 900;
+                        }
+
+                        .memolist span.inactive:before {
+                            content: "\2726";
+                            margin-right: 5px;
+                            color: gray;
+                            font-weight: 900;
+                        }
+
+                        .memolist span {
+                            padding-right: 5px;
+                        }
+
+                        ul.memolist p {
+                            font-size: 0.92rem;
+                            margin-bottom: 10px;
+                        }
+
+                        p.logistic_min.bad,
+                        p.norm_dostawa.bad,
+                        p.pret_dostawa.bad {
+                            color: black;
+                            font-weight: 600;
+                        }
+
+                        p.logistic_min.ok,
+                        p.norm_dostawa.ok,
+                        p.pret_dostawa.ok {
+                            color: green;
+                        }
+
+                        .memolist ~ .grid_18.top-line {
+                            padding-top: 15px;
+                        }
+                    </style>
+                    <?php if ($prentDetected): ?>
+                        <div class="grid_18 top-line"></div>
+                        <div class="memolist"><span>Dostawa dla prętów 2m jest naliczana osobno</span></div>
+                    <?php endif; ?>
+                </div>
+
+
+            </div>
+            <?php endif; ?>
+            <?php if ($allowDarmowaDostawa === true): ?>
+                <?php if ($prentDetected):
+                    $pretFreeShipping = Mage::getStoreConfig('simple24/simple24/simple24_attributes');
+                    $diffFreePret = $pretFreeShipping - $pretCurrentPrice;
+
+
+                    ?>
+                <?php endif; ?>
+                <?php
+                if ($onlyPret == false): ?>
+                    <div class="block block_coupon 4" style="display: none !important;">
+
+                        <div class="discount">
+                            <?php
+                            $arrayproductIds = array('852', '866', '854', '848', '849', '850', '851', '853', '8373', '8375', '8376', '8378', '9379');
+                            $quote = Mage::getSingleton('checkout/session')->getQuote();
+
+                            $foundInCart = false;
+                            foreach ($quote->getAllVisibleItems() as $item) {
+                                if (in_array($item->getData('product_id'), $arrayproductIds)) {
+                                    $foundInCart = true;
+                                }
+                            }
+                            ?>
+                            <?php
+                            // if (!$foundInCart) {
+                            $totals = Mage::getSingleton('checkout/cart')->getQuote()->getSubtotalWithDiscount();
+                            $subtotal = $notPretPrice; //$totals["subtotal"]->getValue();
+
+                            $hiddenInfo = '<div class="hidden-info minlogistic">';
+                            $hiddenInfo .= '<span class="hidden-info_question">?</span>';
+                            $hiddenInfo .= '<span class="hidden-info_answer">Aby otrzymać darmową dostawę, w koszyku łączna wartość produktów (już z uwzględnieniem wszelkich rabatów i zniżek) musi wynosić minimum 700 zł netto.</span>';
+                            $hiddenInfo .= '</div>';
+                            $max = 700;
+                            if ($subtotal < $max):
+                                $brakuje = $max - $notPretPrice;
+                                $missingWithCurrency = Mage::helper('core')->currency($brakuje, true, false);
+                                echo $hiddenInfo . '<h2>Darmowa dostawa</h2>';
+                                ?>
+                                <p style="font-size: 13px">Do darmowej dostawy brakuje ci <strong
+                                            style="font-size:15px;color:#ff0000;"><?= $missingWithCurrency ?> netto</strong></p>
+                            <?php else: ?>
+                                <h2>Darmowa dostawa</h2>
+                                <p style="font-size: 13px">Zamówienie zostanie dostarczone bezpłatnie</p>
+                            <?php endif;
+
+                            // }
+                            ?>
+
+                        </div>
+
+                        <div class="grid_18 top-line"></div>
+                    </div>
+                <?php endif; ?>
+
+                <?php
+
+
+                if ($prentDetected == true): ?>
+                    <div class="block block_coupon 5" style="display: none !important;">
+                        <div class="discount">
+                            <?php
+                            $pretFreeShipping = Mage::getStoreConfig('simple24/simple24/simple24_attributes');
+                            $diffFreePret = $pretFreeShipping - $pretCurrentPrice;
+
+                            // $missingWithCurrency = $diffFreePret."zł";
+                            $missingWithCurrency = Mage::helper('core')->currency($diffFreePret, true, false);
+
+                            $hiddenInfo = '<div class="hidden-info minlogistic">';
+                            $hiddenInfo .= '<span class="hidden-info_question">?</span>';
+                            $hiddenInfo .= "<span class='hidden-info_answer'>Aby otrzymać darmową dostawę, w koszyku łączna wartość produktów (już z uwzględnieniem wszelkich rabatów i zniżek) musi wynosić minimum 1200 zł netto.</span>";
+                            $hiddenInfo .= '</div>';
+                            // $hiddenInfo='';
+
+                            if ($diffFreePret > 0):
+                                echo $hiddenInfo . '<h2>Darmowa dostawa dla prętów 2 metrowych</h2>';
+                                ?>
+                                <p style="font-size: 13px">Do darmowej dostawy prętów 2 metrowych brakuje ci <strong
+                                            style="font-size:15px;color:#ff0000;"><?= $missingWithCurrency ?> netto</strong></p>
+                            <?php else: ?>
+                                <h2>Darmowa dostawa prętów</h2>
+                                <p style="font-size: 13px">Pręty 2 metrowe zostaną dostarczone bezpłatnie</p>
+                            <?php endif;
+
+                            ?>
+                        </div>
+                    </div>
+                <?php endif; ?><?php endif; ?>
+            <?php
+            $wysylkaBlock = Mage::getModel('cms/block')
+                ->setStoreId(Mage::app()->getStore()->getId())
+                ->load('cart_shipping24');
+            if ($wysylkaBlock->getIsActive() && $itemsWithDataZew === 0): ?>
+                <div class="block block_coupon 6 ">
+                    <div class="discount" style="padding-left: 0;">
+                        <h2><?= $wysylkaBlock->getTitle() ?></h2>
+                        <div style="font-size: 13px"><?php echo $this->getLayout()->createBlock('cms/block')->setBlockId('cart_shipping24')->toHtml(); ?></div>
+                    </div>
+                    <div style="margin-top: 20px;padding-top:0;display: block;float: none;" class="grid_18 top-line"></div>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <div class="ccs-item ccs-item_summary <?= $blockClass ?>">
+            <div class="block block_totals clearfix">
+                <div class="block_totals_indent"><h2
+                            style="font-weight: bold;font-family: 'Lato', Arial, sans-serif;text-align: left;padding-top: 15px;">
+                        Podsumowanie</h2>
+                    <?php if($customer_logged === true): ?>
+                    <?php echo $this->getChildHtml('totals'); ?>
+                    <?php else: ?>
+                    <p>Zaloguj się</p>
+                    <?php endif; ?>
+                </div>
+                <?php if (!$this->hasError()): ?>
+                    <ul class="checkout-types">
+                        <li class="continue_wrap">
+                            <div class="proceed-checkout-wrap">
+                                <?php if ($this->getContinueShoppingUrl()): ?>
+                                    <button type="button" title="<?php echo Mage::helper('core')->quoteEscape($this->__('Kontynuuj zakupy')) ?>"
+                                            class="button inverted btn-continue "
+                                            onclick="setLocation('<?php echo $this->getContinueShoppingUrl() ?>')">
+                                        <span><span><?php echo Mage::helper('core')->quoteEscape($this->__('Kontynuuj zakupy')) ?></span></span>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+                        </li>
+                        <?php foreach ($this->getMethods('methods') as $method): ?>
+                            <?php if ($methodHtml = $this->getMethodHtml($method)): ?>
+                                <li><?php echo str_replace("Potwierdzenie zamówienia", "Przejdź do kasy", $methodHtml); ?></li>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+
+</div>
+
+<?php
+$active = Mage::getModel('cms/block')->load('39')->getIsActive();
+if ($active == 1):
+    ?>
+
+    <script type="text/javascript">
+        jQuery(".modal-btn").click(function () {
+            jQuery(".modalx").hide();
+            jQuery("html").attr("style", "");
+        });
+        jQuery(".modal-content span.close").click(function () {
+            jQuery(".modalx").hide();
+            jQuery("html").attr("style", "");
+        });
+        jQuery("body").click(function (event) {
+            var evtTargetId = jQuery(event.target).attr('id');
+            var evtTargetClass = jQuery(event.target).attr('class');
+            console.log('click id:' + evtTargetId + '             class: ' + evtTargetClass);
+            if (evtTargetId == 'myModal') {
+                jQuery(".modalx").hide();
+                jQuery("html").attr("style", "");
+            }
+            if (evtTargetClass.indexOf(" modal-btn ") >= 0) {
+                jQuery(".modalx").hide();
+                jQuery("html").attr("style", "");
+            }
+            if (evtTargetClass == "close") {
+                jQuery(".modalx").hide();
+                jQuery("html").attr("style", "");
+            }
+        });
+
+        function openMe() {
+            jQuery(".modalx").css("display", 'block');
+            jQuery("html").css("overflow-y", "hidden");
+        }
+    </script>
+
+    <!-- The Modal -->
+    <div id="myModal" class="modalx">
+        <!-- Modal content -->
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div class="modal-inner"><?php echo $this->getLayout()->createBlock('cms/block')->setBlockId('39')->toHtml(); ?></div>
+            <div class="modal-buttons">
+                <button type="button" title="Przejdź do kasy" class="button inverted btn-update modal-btn modal-continue">
+                    <span style="pointer-events: none;"><span>Zamawiaj dalej</span></span>
+                </button>
+                <button type="button" title="Przejdź do kasy" class="button btn-proceed-checkout icon-black btn-checkout modal-btn modal-checkout"
+                        onclick="window.location='<?php echo $this->getCheckoutUrl() ?>';">
+                    <span style="pointer-events: none;"><span>Przejdź do kasy</span></span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <style>
+        /* The Modal (background) */
+        .modalx {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 99; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgb(0, 0, 0); /* Fallback color */
+            background-color: rgba(0, 0, 0, 0.4); /* Black w/ opacity */
+            z-index: 9999;
+            text-align: center;
+        }
+
+        /* Modal Content/Box */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 50px auto;
+            padding: 20px;
+            border: 1px solid #888;
+            max-width: 800px;
+            box-sizing: border-box;
+            position: relative;
+            width: auto;
+            display: inline-block;
+        }
+
+        /* The Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            position: absolute;
+            top: 5px;
+            height: 17px;
+            line-height: 17px;
+            right: 5px;
+        }
+
+        .modal-inner {
+            display: block;
+            position: relative;
+            width: 100%;
+            margin: 20px 0;
+            max-width: 800px;
+        }
+
+        .modal-buttons {
+            display: block;
+            position: relative;
+            width: 100%;
+            margin: 20px 0 0;
+            float: left;
+        }
+
+        .modal-inner img {
+            max-width: 100%;
+            height: auto;
+            width: 100%;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+
+<?php endif; ?>
+<style type="text/css">
+    td.a-center.error_notavailable.last a.btn-remove.btn-remove2.icon-white:before {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        content: '';
+        top: 0;
+        left: 0;
+        box-shadow: inset 0px 0px 3px red;
+        transition: all 1s ease;
+        transform: scale(1);
+        transform: scale(2.5);
+        border-radius: 100%;
+        opacity: 0;
+    }
+
+    td.a-center.error_notavailable.last a {
+        position: relative;
+    }
+
+    tr.error_notavailable:hover td.error_notavailable a.btn-remove {
+        overflow: visible;
+        display: block;
+        margin: 0 auto;
+    }
+
+    tr.error_notavailable:hover td.error_notavailable a.btn-remove:before {
+        animation: pulseredring 5s linear;
+        opacity: 1;
+    }
+
+    @keyframes pulseredring {
+        0% {
+            transform: scale(1);
+            opacity: 0;
+        }
+        10% {
+            transform: scale(1);
+            opacity: 0;
+        }
+        20% {
+            transform: scale(2);
+            opacity: 1;
+        }
+        30% {
+            transform: scale(1);
+            opacity: 0;
+        }
+        40% {
+            transform: scale(1);
+            opacity: 0;
+        }
+        50% {
+            transform: scale(2);
+            opacity: 1;
+        }
+        60% {
+            transform: scale(1);
+            opacity: 0;
+        }
+        70% {
+            transform: scale(1);
+            opacity: 0;
+        }
+        80% {
+            transform: scale(2);
+            opacity: 1;
+        }
+        90% {
+            transform: scale(1);
+            opacity: 0;
+        }
+        100% {
+            transform: scale(1);
+            opacity: 0;
+        }
+    }
+
+    /**/
+    .data-table td {
+        border: 0px;
+        padding: 13px 19px;
+        border-bottom: 3px solid #fff;
+    }
+
+    .data-table tr:hover {
+        background: none !important;
+    }
+
+    .data-table tbody tr td:not(:last-of-type) {
+        border-right: 3px solid #fff;
+    }
+
+    .data-table tbody tr.even td:not(:first-of-type) {
+        background: #f4f4f4;
+        border-right-color: #f4f4f4;
+    }
+</style>
+<!-- new cart style start -->
+<style type="text/css">
+    .custom-cart-summary {
+        display: grid;
+        gap: 0px 0px;
+        justify-content: stretch;
+        align-content: stretch;
+        justify-items: stretch;
+        align-items: stretch;
+    }
+
+    .custom-cart-summary {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-areas:
+        "firstrow firstrow firstrow"
+        "secondrowA secondrowB secondrowC";
+    }
+
+    .custom-cart-summary.my-custom-grid_2 {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-areas:
+        "firstrow firstrow"
+        "secondrowA secondrowB";
+    }
+
+    .custom-cart-summary.my-custom-grid_1 {
+        grid-template-columns: repeat(1, 1fr);
+        grid-template-areas:
+        "firstrow"
+        "secondrow";
+    }
+
+    .custom-cart-summary.my-custom-grid_2.show_shipping > .ccs-item_shipping {
+        grid-area: secondrowA;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.show_shipping.hide_promos > .ccs-item_promos {
+        grid-area: secondrowA;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.show_shipping > .ccs-item_summary {
+        grid-area: secondrowB;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.show_promos > .ccs-item_shipping {
+        grid-area: secondrowA;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.show_promos.hide_shipping > .ccs-item_promos {
+        grid-area: secondrowA;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.hide_promos.hide_shipping > .ccs-item_shipping {
+        grid-area: secondrowA;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.hide_promos.hide_shipping > .ccs-item_promos {
+        grid-area: secondrowA;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.show_promos > .ccs-item_summary {
+        grid-area: secondrowB;
+    }
+
+    .custom-cart-summary.my-custom-grid_1 > .css-item {
+        grid-area: secondrow;
+    }
+
+    .custom-cart-summary > .top-line {
+        grid-area: firstrow;
+    }
+
+    .custom-cart-summary > .ccs-item {
+        width: 100% !important;
+    }
+
+    .custom-cart-summary.my-custom-grid_3 > .ccs-item_promos {
+        grid-area: secondrowB;
+    }
+
+    .custom-cart-summary.my-custom-grid_3 > .ccs-item_shipping {
+        grid-area: secondrowA;
+    }
+
+    .custom-cart-summary.my-custom-grid_3 > .ccs-item_summary {
+        grid-area: secondrowC;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.prent_coupon {
+        grid-template-columns: repeat(3, 1fr);
+        grid-template-areas:
+        "firstrow firstrow firstrow"
+        "secondrowA secondrowA secondrowB";
+    }
+
+    .custom-cart-summary.my-custom-grid_2.prent_nocoupon {
+        grid-template-columns: repeat(2, 1fr);
+        grid-template-areas:
+        "firstrow firstrow firstrow"
+        "secondrowA secondrowB";
+    }
+
+    .custom-cart-summary.my-custom-grid_2.prent_nocoupon .ccs-item.ccs-item_promos {
+        display: grid;
+        gap: 0px 20px;
+        justify-content: stretch;
+        align-content: start;
+        justify-items: stretch;
+        align-items: stretch;
+        grid-template-columns: repeat(1, 1fr);
+    }
+
+    .custom-cart-summary.my-custom-grid_2.prent_coupon .ccs-item.ccs-item_promos {
+        display: grid;
+        gap: 0px 20px;
+        justify-content: stretch;
+        align-content: start;
+        justify-items: stretch;
+        align-items: stretch;
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .price.discount {
+        margin-left: 5px;
+        color: green;
+        font-size: 13px;
+    }
+
+    .custom-cart-summary.my-custom-grid_2.prent_nocoupon .ccs-item_shipping,
+    .custom-cart-summary.my-custom-grid_2.prent_coupon .ccs-item_shipping {
+        display: none !important;
+    }
+
+    .price.discount.currency {
+        display: block;
+        margin: 0;
+    }
+
+    .ccs-item > .block {
+        box-shadow: 0px 0px 4px rgb(0 0 0 / 20%);
+    }
+
+    @media all and (max-width: 767px) {
+        #shopping-cart-table tr {
+            margin: 0 0 20px;
+            padding: 0 0 12px;
+            box-shadow: 0px 0px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        #shopping-cart-table tr td {
+            margin: 0 0px;
+            padding: 5px;
+            width: 100%;
+            box-sizing: border-box;
+            background: #fff;
+            border: 0;
+        }
+
+
+        #shopping-cart-table tr.odd,
+        #shopping-cart-table tr.odd td {
+            background: #f0f0f0;
+        }
+
+        .custom-cart-summary {
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB"
+            "secondrowC";
+        }
+
+        .custom-cart-summary.my-custom-grid_2 {
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB";
+        }
+
+        .custom-cart-summary.my-custom-grid_1 {
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-areas:
+            "firstrow"
+            "secondrow";
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_coupon {
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB";
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_nocoupon {
+            grid-template-columns: repeat(1, 1fr);
+            grid-template-areas:
+            "firstrow"
+            "secondrowA"
+            "secondrowB";
+        }
+
+        .data-table .td-title {
+            display: inline-block;
+            width: auto;
+        }
+
+        .custom-cart-summary.my-custom-grid_2.prent_coupon .ccs-item.ccs-item_promos {
+            grid-template-columns: repeat(1, 1fr);
+        }
+    }
+
+    .ccs-item_summary ul.checkout-types > li {
+        display: inline-block;
+        width: 100%;
+        float: none;
+        text-align: center !important;
+    }
+
+    .ccs-item_summary ul.checkout-types > li .proceed-checkout-wrap {
+        padding: 0;
+        text-align: left;
+        width: 100%;
+        text-align: center;
+    }
+
+
+    .ccs-item_summary ul.checkout-types {
+        text-align: left;
+        padding: 0 20px;
+        box-sizing: border-box;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-columns: 1fr;
+        gap: 0px 5px;
+        grid-auto-flow: row;
+    }
+
+    .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button > span {
+        text-align: center !important;
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button > span span {
+        background-position: left;
+        background-image: none;
+        padding: 0;
+        text-align: center !important;
+    }
+
+    .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button > span:before {
+        background-color: #00a9bb;
+    }
+
+    .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button {
+        width: 100%;
+        text-align: center;
+    }
+
+    .ccs-item_summary ul.checkout-types > li.continue_wrap .proceed-checkout-wrap button span {
+        float: none;
+    }
+
+    @media all and (max-width: 767px) {
+        .ccs-item_summary ul.checkout-types {
+            grid-template-columns: repeat(1, 1fr);
+            gap: 5px 5px;
+        }
+
+        .ccs-item_summary ul.checkout-types > li {
+            width: 100%;
+        }
+
+        .block_totals button.button {
+            width: 100%;
+        }
+
+        .block_totals button.button span {
+            float: none;
+        }
+
+        .main-container > .footer-container {
+            display: none;
+        }
+
+        .main-container > .content-container {
+            padding-bottom: 90px;
+        }
+    }
+
+    /* min logistic - css from here */
+    .block_totals #shopping-cart-totals-table td + td span.pro-forma {
+        display: block;
+        white-space: initial;
+    }
+
+    .custom-cart-summary > .ccs-item_shipping .discount {
+        box-sizing: border-box;
+        padding-left: 35px;
+    }
+
+    .custom-cart-summary > .ccs-item_shipping .block_coupon {
+        position: relative;
+    }
+
+    .custom-cart-summary > .ccs-item_shipping .discount .hidden-info,
+    .block_totals #shopping-cart-totals-table tfoot .hidden-info {
+        position: absolute;
+        top: 18px;
+        left: 20px;
+    }
+
+    .custom-cart-summary > .ccs-item_shipping .discount .hidden-info .hidden-info_question,
+    .block_totals #shopping-cart-totals-table tfoot .hidden-info .hidden-info_question {
+        width: 20px;
+        height: 20px;
+        line-height: 20px;
+        display: block;
+        text-align: center;
+        color: #fff;
+        background: black;
+        border-radius: 100%;
+        font-size: 11px;
+        cursor: help;
+    }
+
+    .custom-cart-summary > .ccs-item_shipping .discount .hidden-info .hidden-info_answer,
+    .block_totals #shopping-cart-totals-table tfoot .hidden-info .hidden-info_answer {
+        background: black;
+        color: white;
+        display: BLOCK;
+        position: absolute;
+        max-width: 370px;
+        width: 370px;
+        box-sizing: border-box;
+        padding: 5px 10px;
+        top: 0;
+        left: 27px;
+        visibility: hidden;
+        opacity: 0;
+        z-index: -1;
+
+    }
+
+    .custom-cart-summary > .ccs-item_shipping .discount .hidden-info .hidden-info_answer:before,
+    .block_totals #shopping-cart-totals-table tfoot .hidden-info .hidden-info_answer:before {
+        position: absolute;
+        top: 5px;
+        left: -10px;
+        border: 5px solid transparent;
+        border-right-color: #000000;
+        content: '';
+
+    }
+
+    .custom-cart-summary > .ccs-item_shipping .discount .hidden-info:hover .hidden-info_answer,
+    .block_totals #shopping-cart-totals-table tfoot .hidden-info:hover .hidden-info_answer {
+        opacity: 1;
+        visibility: visible;
+        z-index: 1;
+    }
+
+    .block_totals button.button.no-checkout,
+    .page-title.title-buttons button.button.no-checkout {
+        opacity: 0.5;
+    }
+
+    .block_totals button.button.no-checkout:hover span:before,
+    .block_totals button.button.no-checkout:hover span:after,
+    .page-title.title-buttons button.button.no-checkout:hover span:before,
+    .page-title.title-buttons button.button.no-checkout:hover span:after {
+        background-color: #003543;
+    }
+
+    .block_totals #shopping-cart-totals-table tfoot .hidden-info {
+        top: 6px;
+        left: -20px;
+    }
+
+    /* min logistic - css to here */
+    span.showhide_items {
+        cursor: pointer;
+        position: relative;
+        display: block;
+        margin-top: 5px;
+        box-sizing: border-box;
+        padding-left: 10px;
+        font-size: 13px;
+        text-decoration: underline;
+        margin-bottom: 5px;
+        color: #00a9bb;
+        font-weight: 600;
+    }
+
+    .show_hide_atrs .showhide_item {
+        display: none;
+    }
+
+    span.showhide_items:before {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        border: 4px solid transparent;
+        border-left-color: #00a9bb;
+        content: '';
+        transform: translateY(-50%);
+    }
+
+    .show_hide_atrs.showthem .showhide_item {
+        display: block;
+        box-sizing: border-box;
+        padding-left: 10px;
+    }
+
+    .show_hide_atrs.showthem span.showhide_items:before {
+        border-left-color: transparent;
+        border-top-color: #00a9bb;
+        top: calc(50% + 2px);
+    }
+</style>
+<!-- new cart style end -->
+<script type="text/javascript">
+    let checkoutBtn = document.querySelector('.block_totals button.button.no-checkout');
+    let checkoutBtnHeader = document.querySelector('.page-title.title-buttons button.button.no-checkout');
+    if (checkoutBtn) {
+        checkoutBtn.title = "Brak minimum logistycznego!";
+    }
+    if (checkoutBtnHeader) {
+        checkoutBtnHeader.title = "Brak minimum logistycznego!";
+    }
+    let tfoot = null;
+    const totalsTable = document.getElementById('shopping-cart-totals-table');
+    totalsTable.style.paddingLeft = "20px";
+    // console.log('childrens', totalsTable.children);
+    for (index in totalsTable.children) {
+        // check if its not inherited
+        if ((totalsTable.children.hasOwnProperty(index)) && (totalsTable.children[index].nodeName === 'TFOOT')) {
+            tfoot = totalsTable.children[index];
+        }
+    }
+    console.log(tfoot);
+    const nettoTD = tfoot.children[0].children[0];
+    const bruttoTD = tfoot.children[1].children[0];
+    const nettoTxt = 'To całkowita wartość produktów z uwzględnieniem rabatów wraz z ewentualnymi kosztami dostawy';
+    const bruttoTxt = 'To całkowita wartość produktów z uwzględnieniem rabatów wraz z ewentualnymi kosztami dostawy';
+    let nettoInfo = document.createElement('div');
+    nettoInfo.classList.add('hidden-info');
+    nettoInfo.classList.add('netto-info');
+    nettoInfo.innerHTML = '<span class="hidden-info_question">?</span><span class="hidden-info_answer">' + nettoTxt + '</span>';
+    nettoTD.prepend(nettoInfo);
+
+    let bruttoInfo = document.createElement('div');
+    bruttoInfo.classList.add('hidden-info');
+    bruttoInfo.classList.add('netto-info');
+    bruttoInfo.innerHTML = '<span class="hidden-info_question">?</span><span class="hidden-info_answer">' + bruttoTxt + '</span>';
+    bruttoTD.prepend(bruttoInfo);
+
+    nettoTD.style.position = 'relative';
+    bruttoTD.style.position = 'relative';
+
+
+</script>
+<script type="text/javascript">
+    jQuery(function ($) {
+        $('span.showhide_items').on('click', function () {
+            let showAtrsIdPart = $(this).closest('tr').attr('data-id');
+            $(this).closest('tr').toggleClass('additional_visible');
+            let showAtrsId = '#' + showAtrsIdPart + '_additional';
+            if ($(this).closest('tr').hasClass('odd')) {
+                $(showAtrsId).addClass('odd');
+            }
+            if ($(this).closest('tr').hasClass('even')) {
+                $(showAtrsId).addClass('even');
+            }
+            if ($(this).parent().hasClass('showthem')) {
+                console.log('ukryj atrybuty');
+                $(this).text('Zobacz szczegóły');
+                $(this).parent().removeClass('showthem');
+                $(showAtrsId).hide();
+            } else {
+                console.log('pokaż atrybuty');
+                $(this).text('Ukryj szczegóły');
+                $(this).parent().addClass('showthem');
+                $(showAtrsId).show();
+            }
+        });
+        $('table#shopping-cart-table tbody tr').each((index, item) => {
+            $(item).removeClass('even');
+            if ($(item).hasClass('tr_additional_data')) {
+                $(item).hide();
+                $(item).css('margin-top', '-20px');
+            }
+        });
+        $('table#shopping-cart-table tbody tr:visible').each((index, item) => {
+            let newIndex = index + 1;
+            if ((newIndex % 2) === 0) {
+                $(item).removeClass('odd').addClass('even');
+            }
+            let currentCookieVal = getCookie('show_all_cart_data');
+            if (currentCookieVal === 'showemall') {
+                $(item).toggleClass('additional_visible');
+                $('.show_hide_atrs span.showhide_items').hide();
+            } else {
+                $('.show_hide_atrs span.showhide_items').show();
+            }
+        });
+        $('table#shopping-cart-table tbody tr.tr_additional_data').each((index, item) => {
+            let newIndex = index + 1;
+            if ((newIndex % 2) === 0) {
+                $(item).removeClass('odd').addClass('even');
+            } else {
+                $(item).removeClass('even').addClass('odd');
+            }
+            let currentCookieVal = getCookie('show_all_cart_data');
+            if (currentCookieVal === 'showemall') {
+                $(item).show();
+            } else {
+                $(item).hide();
+            }
+        });
+
+        function setCookie(cname, cvalue) {
+            let now = new Date();
+            let time = now.getTime();
+            let expireTime = time + 1000 * 60 * 60 * 24 * 365;
+            now.setTime(expireTime);
+            document.cookie = cname + "=" + cvalue + ";expires=" + now + ";path=/";
+        }
+
+        function getCookie(cname) {
+            let name = cname + "=";
+            let ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) == ' ') c = c.substring(1);
+                if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
+            }
+            return "";
+        }
+
+        $('input#show_all_data').on('change', () => {
+            console.log('show_all_cart_data: ', getCookie('show_all_cart_data'));
+            if ($('input#show_all_data').is(':checked')) {
+                console.log('show ALL - checked - set cookie to showemall');
+                setCookie('show_all_cart_data', 'showemall');
+                window.location.reload();
+            } else {
+                console.log('hide ALL - NOT checked set cookie to hidemall');
+                setCookie('show_all_cart_data', 'hidemall');
+                window.location.reload();
+            }
+            console.log('show_all_cart_data: ', getCookie('show_all_cart_data'));
+        });
+    });
+</script>
+<style type="text/css">
+    .attributes_hidden {
+        display: none !important;
+    }
+
+    .show_hide_atrs.mobiles_atrs {
+        display: none;
+    }
+
+    td.additional_data_item.add_info {
+        vertical-align: middle;
+    }
+
+    .data-table tbody tr.even td {
+        background: #f4f4f4;
+        border-right-color: #f4f4f4;
+    }
+
+    .data-table tbody tr td:first-of-type {
+        text-align: left;
+        padding: 13px 19px;
+    }
+
+    td.additional_data_item.add_info .show_hide_atrs {
+        display: grid;
+        align-content: center;
+        justify-content: start;
+        align-items: start;
+        justify-items: start;
+        grid-template-columns: repeat(2, 1fr);
+        height: 100%;
+    }
+
+    .tr_additional_data {
+        display: none;
+    }
+
+    td.additional_data_item.add_images .add_images_wrap {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 10px;
+    }
+
+    td.additional_data_item.add_images .add_images_wrap img.showhide_item.item_image {
+        height: auto;
+        max-width: 100%;
+        max-height: 140px;
+    }
+
+    .data-table tbody tr td:first-of-type .product-name {
+        font-weight: 600;
+    }
+
+    .data-table tbody tr td:first-of-type .product-name a:hover {
+        color: #00a9bb;
+    }
+
+    td.additional_data_item.add_images .add_images_wrap a {
+        padding: 0;
+        height: auto;
+        max-width: calc(50% - 20px);
+        max-height: 140px;
+    }
+
+    .show_all_data_wrap {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 5px;
+        box-sizing: border-box;
+        padding: 5px;
+        margin-bottom: 10px;
+        max-width: 300px;
+    }
+
+    @media all and (max-width: 767px) {
+        .show_hide_atrs.mobiles_atrs {
+            display: block;
+        }
+
+        .show_hide_atrs:not(.mobiles_atrs) {
+            display: none;
+        }
+
+        #shopping-cart-table tr.odd {
+            background: #f0f0f0 !important;
+        }
+
+        td.additional_data_item.add_info .show_hide_atrs {
+            grid-template-columns: repeat(1, 1fr);
+        }
+    }
+</style>
+<?php #clickup 1v6gnt5 ?>
+<style type="text/css">
+    span#empty_cart_button-trig,
+    .fake_btn {
+        overflow: visible;
+        width: auto;
+        border: 0;
+        margin: 0;
+        background: transparent;
+        cursor: pointer;
+        background-color: #00a9bb;
+        color: #fff;
+        position: relative;
+        outline: none;
+        display: inline-block;
+        height: 30px;
+        font-weight: 800;
+        font-size: 14px;
+        line-height: 30px;
+        white-space: nowrap;
+        z-index: 1;
+        padding: 0 11px;
+        text-align: center;
+        font-family: "Lato", Arial, sans-serif;
+        letter-spacing: -1px;
+        cursor: pointer;
+    }
+
+    span#empty_cart_button-trig:hover,
+    .fake_btn:hover {
+        background-color: #013c4d;
+    }
+
+    .fake_btn {
+        float: left;
+        margin: 0 3px;
+    }
+
+    .data-table .btn-continue {
+        margin-right: 2px;
+    }
+
+    /*clear popup*/
+    .clear_cart-warn {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #fff;
+        font-size: 15px;
+        line-height: initial;
+        box-sizing: border-box;
+        max-width: 320px;
+        /* padding: 10px; */
+        text-align: center;
+        box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.3);
+        z-index: 99;
+    }
+
+    .clear_cart-warn > div {
+        display: block;
+        width: 100%;
+        margin-bottom: 15px;
+    }
+
+    .clear_cart-warn > div:last-child {
+        margin-bottom: 0;
+    }
+
+    .clear_cart-warn > .cc_warn-title {
+        font-weight: 600;
+        color: #fff;
+        background: #003543;
+        padding: 5px 0;
+    }
+
+    .clear_cart-warn:not(.activated) {
+        visibility: hidden;
+        opacity: 0;
+        z-index: -1;
+    }
+
+    .clear_cart-warn.activated {
+        visibility: visible;
+        opacity: 1;
+        z-index: 99;
+    }
+
+    .ccwrap-overlay {
+        position: fixed;
+        width: 100%;
+        height: 100%;
+        background: rgb(0 0 0 / 65%);
+        z-index: 98;
+    }
+
+    .clear_cart-warn > div.cc_warn-btns {
+        padding-bottom: 10px;
+    }
+
+    .clear_cart-warn > div.cc_warn-btns {
+        padding-bottom: 10px;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: center;
+        justify-content: center;
+        align-items: center;
+        gap: 20px;
+    }
+
+    span.cc_warn-cancel {
+        overflow: visible;
+        width: auto;
+        border: 0;
+        margin: 0;
+        background: transparent;
+        background-color: #00a9bb;
+        color: #fff;
+        position: relative;
+        outline: none;
+        display: inline-block;
+        height: 30px;
+        font-weight: 800;
+        font-size: 14px;
+        line-height: 30px;
+        white-space: nowrap;
+        z-index: 1;
+        padding: 0px 11px;
+        text-align: center;
+        font-family: "Lato", Arial, sans-serif;
+        letter-spacing: -1px;
+        cursor: pointer;
+    }
+
+    span.cc_warn-cancel:hover {
+        background-color: #003543;
+    }
+
+    span.is_inox_label {
+        background: #013C4D;
+        color: #fff;
+        box-sizing: border-box;
+        padding: 1px 5px 0;
+        font-weight: 600;
+        display: inline-block;
+        border-radius: 6px;
+        font-size: 10px;
+    }
+</style>
+<script type="text/javascript">
+    const ccPopBtn = jQuery('span#empty_cart_button-trig');
+    const ccWrap = jQuery('div.clear_cart-warn');
+    const ccWrapCancel = jQuery('span.cc_warn-cancel');
+
+    let ccWrapOverlay = '<div class="ccwrap-overlay"></div>';
+    ccPopBtn.on('click', function () {
+        openWarn();
+
+        jQuery('.ccwrap-overlay').on('click', function () {
+            removeWarn();
+        });
+
+        jQuery(document).keyup(function (e) {
+            if (e.key === "Escape") { // escape key maps to keyCode 27
+                removeWarn();
+                console.log(e);
+            }
+        });
+    });
+
+    ccWrapCancel.on('click', function () {
+        removeWarn();
+    });
+
+    function removeWarn() {
+        jQuery('.ccwrap-overlay').remove();
+        jQuery('div.clear_cart-warn').removeClass('activated');
+    }
+
+    function openWarn() {
+        jQuery('body').prepend(ccWrapOverlay);
+        ccWrap.addClass('activated');
+    }
+</script>
+<style type="text/css">
+    .attrhidden_content {
+        position: absolute;
+        top: 50%;
+        left: 25px;
+        background: #eee;
+        box-sizing: border-box;
+        padding: 8px;
+        box-shadow: 0px 0px 3px rgb(0 0 0 / 20%);
+        opacity: 0;
+        visibility: hidden;
+        width: max-content;
+        max-width: 320px;
+        border: 2px solid #000;
+        transform: translateY(-50%);
+        text-align: left;
+    }
+
+    .attributes_hidden {
+        position: relative;
+        display: inline-block;
+        margin-right: 5px;
+    }
+
+    span.attrhidden_tool {
+        display: inline-block;
+        box-sizing: border-box;
+        line-height: 16px;
+        width: 15px;
+        height: 15px;
+        border-radius: 100%;
+        color: #fff;
+        background: #000;
+        text-align: center;
+        cursor: pointer;
+    }
+
+
+    .attributes_hidden:hover .attrhidden_content {
+        opacity: 1;
+        visibility: visible;
+        z-index: 1;
+    }
+
+    .attributes_hidden {
+        order: 0;
+    }
+
+    .attrhidden_content:before {
+        position: absolute;
+        top: 50%;
+        left: -15px;
+        border: 7px solid transparent;
+        border-right-color: black;
+        content: '';
+        transform: translateY(-50%);
+    }
+</style>
+<?php
+$isTesting = $_GET['badajprenta'];
+if ($isTesting === 'tak'): ?>
+    <style type="text/css">
+        .item_help_container {
+            display: block;
+            position: relative;
+            float: left;
+        }
+
+        .item_help_container span.questionmark {
+            position: relative;
+            padding: 0px 4px;
+            background: #222;
+            color: #fff;
+            border-radius: 100%;
+        }
+
+        .item_help_container .questionmark + .item_help {
+            position: absolute;
+            width: 200px;
+            background: #222;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 6px;
+            top: 0;
+            left: -230px;
+            text-align: left;
+            z-index: -1;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .item_help_container:hover .questionmark + .item_help {
+            z-index: 1;
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .data-table .item_help tbody tr td {
+            background: none !important;
+            padding: 5px;
+            border-width: 1px;
+            text-align: left;
+        }
+
+        /*.item_help_container .questionmark + .item_help*/
+    </style>
+<?php endif; ?>
+<style type="text/css">
+    .td-qty .qty-container {
+        display: inline-block;
+    }
+
+    td.td-qty {
+        /*    text-align: left !important;*/
+        padding-left: 10px;
+    }
+
+    .opakowanie_zbiorcze .opak_icon + .opak_tooltip {
+        position: absolute;
+        width: 170px;
+        height: 30px;
+        display: block;
+        bottom: -35px;
+        left: -110px;
+        text-align: center;
+        vertical-align: middle;
+        background: green;
+        color: #fff;
+        line-height: 30px;
+        border-radius: 50px;
+        z-index: -1;
+        opacity: 0;
+        font-weight: 600;
+    }
+
+    .opakowanie_zbiorcze .opak_icon > img {
+        max-width: 30px;
+        width: 100%;
+        height: auto;
+    }
+
+    .opakowanie_zbiorcze:hover .opak_tooltip,
+    .opakowanie_zbiorcze.show_tool .opak_tooltip {
+        z-index: 1;
+        opacity: 1;
+        transition: opacity 0.5s ease;
+    }
+
+    span.opakowanie_zbiorcze {
+        max-width: 30px;
+        width: 100%;
+        height: auto;
+        display: inline-block;
+        position: relative;
+        vertical-align: top;
+    }
+
+    .td-qty .qty-container {
+        max-width: 75px;
+    }
+
+    .opaks_wrap {
+        display: grid;
+        max-width: 100%;
+        width: 100%;
+        grid-template-columns: 30px 30px 40px;
+        justify-content: center;
+        align-items: center;
+    }
+
+    @media all and (max-width: 767px) {
+        .td-qty .qty-container {
+            max-width: 185px;
+            width: 100%;
+        }
+
+        .opaks_wrap {
+            grid-template-columns: 30px 30px;
+            padding-left: 5px;
+        }
+    }
+
+    #cart_information_wrap {
+        width: 100%;
+        display: flex;
+        flex-flow: row;
+        margin-bottom: 10px;
+        justify-content: center;
+    }
+
+    #cart_information_wrap span {
+        color: #6E6E6E;
+        font-family: "Montserrat", Arial, sans-serif;
+        font-size: 13px;
+    }
+
+    #cart_information_wrap > .cart_information_block {
+        position: relative;
+        width: 25%;
+        background-color: #f4f4f4;
+        padding: 18px 19px 19px 19px;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        flex-grow: 1;
+    }
+
+    #cart_information_wrap > .cart_information_block:not(:last-child) {
+        margin-right: 3px;
+    }
+
+    #cart_information_wrap > .cart_information_block .text {
+        padding-left: 25%;
+        width: 25%;
+    }
+
+    #cart_information_wrap > .cart_information_block .value span {
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    #cart_information_wrap > .cart_information_block .value {
+        width: 45%;
+        text-align: right;
+        padding-right: 20px;
+    }
+
+    #cart_information_wrap > .cart_information_block .title:before {
+        content: "";
+        display: block;
+        width: 60px;
+        height: 60px;
+        background-size: 60px 60px;
+        position: absolute;
+        left: 8%;
+        top: 15%;
+    }
+
+    #cart_information_wrap > .cart_information_block.ilosc .title:before {
+        background-image: url('/media/wysiwyg/cart/package.svg');
+    }
+
+    #cart_information_wrap > .cart_information_block.wartosc .title:before {
+        background-image: url('/media/wysiwyg/cart/cart.svg');
+    }
+
+    #cart_information_wrap > .cart_information_block.waga .title:before {
+        background-image: url('/media/wysiwyg/cart/scale.svg');
+    }
+
+    #cart_information_wrap > .cart_information_block.znizki .title:before {
+        background-image: url('/media/wysiwyg/cart/percent.svg');
+        background-size: 140px 140px;
+    }
+
+    td.additional_data_item.add_info,
+    span.add_info_item {
+        font-weight: 600;
+    }
+
+    td.additional_data_item.add_info b,
+    td.additional_data_item.add_info strong
+    span.add_info_item b,
+    span.add_info_item strong {
+        font-weight: 400;
+    }
+
+    @media all and (max-width: 1360px) {
+        #cart_information_wrap > .cart_information_block .text {
+            padding-left: 30%;
+        }
+    }
+
+    @media all and (max-width: 1024px) {
+        #cart_information_wrap {
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        #cart_information_wrap > .cart_information_block {
+            flex: 1 0 30%;
+            margin-bottom: 10px;
+        }
+
+        #cart_information_wrap > .cart_information_block .title:before {
+            top: 8%;
+        }
+    }
+
+    @media all and (max-width: 767px) {
+        #cart_information_wrap {
+            flex-flow: column;
+            flex-wrap: unset;
+        }
+
+        #cart_information_wrap > .cart_information_block {
+            flex: unset;
+            width: 100%;
+            padding: 24px 12px;
+        }
+
+        #cart_information_wrap > .cart_information_block .title:before {
+            top: 15%;
+        }
+
+        .cart-table tfoot td .btn-continue {
+            margin: 0 0;
+            display: inline-block;
+        }
+
+        .fake_btn {
+            float: none;
+            display: inline-block;
+        }
+    }
+
+    .cenax-tool {
+        position: relative;
+    }
+
+    .cenax-tool:hover > .tool {
+        display: block !important;
+        position: absolute;
+        bottom: calc(100% + 5px);
+        width: 280px;
+        color: #fff;
+        background: #013c4d;
+        box-sizing: border-box;
+        padding: 5px;
+        border-radius: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+        white-space: initial;
+    }
+
+    span.price.cenac2-old {
+        position: relative;
+    }
+
+    span.price.cenac2-old:before {
+        position: absolute;
+        content: attr(data-title);
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    span.price.cenac2-old:hover:before {
+        opacity: 0;
+        visibility: hidden;
+        top: -32px;
+        background: #003543;
+        color: #ffffff;
+        left: 50%;
+        transform: translateX(-50%);
+        box-sizing: border-box;
+        padding: 5px;
+        border-radius: 5px;
+        letter-spacing: 0px;
+        font-size: 14px;
+    }
+
+    .dostawa-zew-tooltip {
+        position: relative;
+    }
+
+    .dostawa-zew-tooltip img {
+        max-width: 40px;
+        width: 40px;
+        height: 25px;
+        object-fit: cover;
+    }
+
+    .dostawa-zew-tooltip .opak_icon {
+        display: block;
+    }
+
+    .dostawa-zew-tooltip .opak_icon + .opak_tooltip {
+        position: absolute;
+        width: 230px;
+        right: -10px;
+        display: block;
+        top: calc(100% + 3px);
+        text-align: center;
+        vertical-align: middle;
+        z-index: -1;
+        opacity: 0;
+        font-weight: 400;
+        font-size: 13px;
+        white-space: break-spaces;
+        height: auto;
+        line-height: 18px;
+        border-radius: 8px;
+        padding: 5px;
+        background: #efefef;
+        color: #000;
+        box-shadow: 0 0 0px 1px #000;
+        overflow: visible;
+    }
+
+    .dostawa-zew-tooltip:hover .opak_icon + .opak_tooltip {
+        opacity: 1;
+        z-index: 1;
+        font-weight: 400;
+        font-size: 13px;
+        white-space: break-spaces;
+        height: auto;
+        line-height: 18px;
+        border-radius: 8px;
+        padding: 5px;
+        background: #efefef;
+        color: #000;
+        box-shadow: 0 0 0px 1px #000;
+        overflow: visible;
+    }
+
+    .dostawa-zew-tooltip:hover .opak_icon + .opak_tooltip:before {
+        position: absolute;
+        content: '';
+        border: 5px solid transparent;
+        border-bottom-color: #000;
+        top: -10px;
+        right: 20px;
+    }
+
+    .messages.dostawa_zew ul li {
+        font-weight: 400;
+        font-size: 15px;
+        letter-spacing: 0;
+    }
+
+    .messages.dostawa_zew .dostawa_zew_show .trig {
+        text-decoration: underline;
+        color: #00a9bb;
+        cursor: pointer;
+    }
+
+    .messages.dostawa_zew li.notice-msg:before {
+        background: url('/media/wysiwyg/ikonografikacech/pickup-car.png');
+        background-size: 45px;
+        width: 45px;
+        height: 45px;
+        top: 50%;
+        transform: translateY(-50%);
+    }
+
+    /* #39cuh7j OPCJA PIERWSZA - TŁO NA KOMÓRKACH*/
+    /* tr.dostawa_zew_highlight, tr.dostawa_zew_highlight td, tr.dostawa_zew_highlight td .product-name a {
+      background-color: #043145 !important;
+      color: #fff !important;
+    }
+    tr.dostawa_zew_highlight td .opaks_wrap img {
+      filter:invert(1);
+    } */
+    /* #39cuh7j OPCJA DRUGA - OBRAMOWANIE NA KOMÓRKACH */
+    /*tr.dostawa_zew_highlight td {*/
+    /*    box-shadow: inset 0 0 2px 2px #013c4d;*/
+    /*}*/
+    /* #39cuh7j OPCJA TRZECIA - OBRAMOWANIE NA WIERSZU*/
+    tr.dostawa_zew_highlight {
+        border: 2px solid #df1683 !important;
+    }
+
+    tr:not(dostawa_zew_highlight) td {
+        border-top: 0px !important;
+        border-bottom: 0px !important;
+    }
+
+    tr.dostawa_zew_highlight td {
+        border-top: 2px solid #df1683 !important;
+        border-bottom: 2px solid #df1683 !important;
+    }
+
+    .messages.dostawa_zew li.notice-msg {
+        border: 2px solid #df1683 !important;
+    }
+
+    .messages.dostawa_zew li.notice-msg {
+        padding-left: 25px;
+    }
+
+    .messages.dostawa_zew li.notice-msg:before {
+        opacity: 0;
+    }
+
+    .messages.dostawa_zew .icon_dostawa:before {
+        background: url(/media/wysiwyg/ikonografikacech/pickup-car.png);
+        background-size: 45px;
+        width: 45px;
+        height: 45px;
+        top: 50%;
+        content: '';
+        display: block;
+    }
+
+    .messages.dostawa_zew .icon_dostawa {
+        display: inline-block;
+        width: 45px;
+        height: 45px;
+        vertical-align: middle;
+        position: relative;
+        margin: 0 10px;
+    }
+
+    #cart_form table.cart-table.data-table.with_dostawa_highlights td, #cart_form table.cart-table.data-table.with_dostawa_highlights th {
+        border: 0;
+    }
+
+    tr.tr_additional_data.dostawa_zew_highlight td,
+    tr.tr_additional_data.dostawa_zew_highlight {
+        border-top: 0 !important;
+    }
+
+    tr.dostawa_zew_highlight.additional_visible td,
+    tr.dostawa_zew_highlight.additional_visible {
+        border-bottom: 0 !important;
+    }
+</style>
+<script type="text/javascript">
+    jQuery(function ($) {
+        $('.opak_zbr .input-text.qty').on('input paste keyup change', function (e) {
+            let thisVal = $(this).val();
+            let thisOpakVal = $(this).parent().next().attr('data-opakzbr');
+            let moduloTest = (thisVal % thisOpakVal) === 0;
+            //console.log(thisVal, thisOpakVal, moduloTest);
+            if (moduloTest !== true) {
+                //$(this).parent().next().addClass('show_tool');
+            } else {
+                //$(this).parent().next().removeClass('show_tool');
+            }
+        });
+    });
+
+    function toggleShowDostawaZew(item) {
+        jQuery(function ($) {
+            let itemsDostawaZew = $(item).attr('data-items').split(',');
+            console.log(itemsDostawaZew);
+            $(item).parent().find('span.info').toggle();
+            $.each(itemsDostawaZew, (index, element_id) => {
+                $('#cart_form table.cart-table.data-table tbody').find('tr[data-id="' + element_id + '"]').toggleClass('dostawa_zew_highlight');
+                $('#cart_form table.cart-table.data-table tbody').find('tr#' + element_id + '_additional').toggleClass('dostawa_zew_highlight');
+            });
+        });
+
+    }
+</script>
